@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import DrawingCanvas from './components/DrawingCanvas';
 import MirrorCanvas from './components/MirrorCanvas';
 import Toolbar from './components/Toolbar';
+import ResizeHandle from './components/ResizeHandle';
 
 function App() {
   const [isDrawing, setIsDrawing] = useState(false);
@@ -15,6 +16,9 @@ function App() {
   const [canRedo, setCanRedo] = useState(false);
   
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [tutorViewHeight, setTutorViewHeight] = useState(400); // pixels
+  const [studentViewHeight, setStudentViewHeight] = useState(400); // pixels
+  const [isResizing, setIsResizing] = useState<'tutor' | 'student' | null>(null);
 
   const handleHistoryChange = (data: string, canUndoState: boolean, canRedoState: boolean) => {
     setCanvasData(data);
@@ -43,8 +47,52 @@ function App() {
     link.click();
   };
 
+  const handleTutorResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing('tutor');
+    const startY = e.clientY;
+    const startHeight = tutorViewHeight;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - startY;
+      const newHeight = Math.max(200, startHeight + deltaY);
+      setTutorViewHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleStudentResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing('student');
+    const startY = e.clientY;
+    const startHeight = studentViewHeight;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - startY;
+      const newHeight = Math.max(200, startHeight + deltaY);
+      setStudentViewHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -83,9 +131,12 @@ function App() {
       />
 
       {/* Main Drawing Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-col">
         {/* Drawing Canvas */}
-        <div className="flex-1 relative border-b border-gray-300">
+        <div 
+          className="relative"
+          style={{ height: `${tutorViewHeight}px` }}
+        >
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 rotate-180">
             <div className="bg-white px-3 py-1 rounded-full shadow-sm border border-gray-200">
               <div className="flex items-center space-x-2">
@@ -113,8 +164,19 @@ function App() {
           </div>
         </div>
 
+        {/* Tutor Resize Handle */}
+        <ResizeHandle
+          onMouseDown={handleTutorResizeStart}
+          position="bottom"
+          label="Drag to resize tutor view"
+          isTutorHandle={true}
+        />
+
         {/* Mirror Canvas */}
-        <div className="flex-1 relative">
+        <div 
+          className="relative"
+          style={{ height: `${studentViewHeight}px` }}
+        >
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
             <div className="bg-white px-3 py-1 rounded-full shadow-sm border border-gray-200">
               <div className="flex items-center space-x-2">
@@ -129,6 +191,13 @@ function App() {
             </div>
           </div>
         </div>
+        
+        {/* Student Resize Handle */}
+        <ResizeHandle
+          onMouseDown={handleStudentResizeStart}
+          position="bottom"
+          label="Drag to resize student view"
+        />
       </div>
 
       {/* Footer */}
