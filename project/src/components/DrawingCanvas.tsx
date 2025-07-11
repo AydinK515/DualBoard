@@ -1,4 +1,3 @@
-// src/components/DrawingCanvas.tsx
 import React, {
   useRef,
   useEffect,
@@ -50,7 +49,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const lastMouse = useRef({ x: 0, y: 0 });
   const lastTouchDistance = useRef<number | null>(null);
 
-  // History management callbacks must be declared before useEffects that reference them
+  // History management callbacks
   const restoreFromHistory = useCallback((index: number) => {
     if (!context || !canvasRef.current) return;
     const img = new Image();
@@ -80,14 +79,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   // Report pan/zoom changes
   useEffect(() => {
-    onViewChange?.({
-      scale,
-      offsetX: translate.x,
-      offsetY: translate.y,
-    });
+    onViewChange?.({ scale, offsetX: translate.x, offsetY: translate.y });
   }, [scale, translate.x, translate.y, onViewChange]);
 
-  // Initialize canvas (runs only once)
+  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -96,7 +91,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     canvas.width = 3000;
     canvas.height = 3000;
-    ctx.scale(1, 1);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.fillStyle = '#ffffff';
@@ -138,11 +132,24 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [redoAction, historyIndex, history.length, restoreFromHistory, setRedoAction]);
 
-  // Zoom handler
+  // Zoom handler: center on cursor
   const handleZoom = (e: React.WheelEvent) => {
     e.preventDefault();
+    if (!outerRef.current) return;
+    const rect = outerRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
     const delta = e.deltaY < 0 ? 1.1 : 0.9;
-    setScale(prev => Math.max(0.2, Math.min(5, prev * delta)));
+
+    setScale(prevScale => {
+      const newScale = Math.max(0.2, Math.min(5, prevScale * delta));
+      const factor = newScale / prevScale;
+      setTranslate(prev => ({
+        x: prev.x * factor + (1 - factor) * offsetX,
+        y: prev.y * factor + (1 - factor) * offsetY,
+      }));
+      return newScale;
+    });
   };
 
   // Pan handlers
@@ -160,7 +167,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     lastMouse.current = { x: e.clientX, y: e.clientY };
     setTranslate(prev => ({ x: prev.x + dx, y: prev.y + dy }));
   };
-  const endPan = () => { isPanning.current = false; };
+  const endPan = () => {
+    isPanning.current = false;
+  };
 
   // Convert event to canvas-space
   const getPoint = (e: React.MouseEvent | React.TouchEvent) => {
@@ -214,15 +223,30 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     saveToHistory();
   };
 
-  // Touch pinch-zoom vs draw
+  // Touch pinch-zoom vs draw: center on pinch midpoint
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
+    if (e.touches.length === 2 && outerRef.current) {
+      const rect = outerRef.current.getBoundingClientRect();
+      const x1 = e.touches[0].clientX - rect.left;
+      const y1 = e.touches[0].clientY - rect.top;
+      const x2 = e.touches[1].clientX - rect.left;
+      const y2 = e.touches[1].clientY - rect.top;
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      const dx = x1 - x2;
+      const dy = y1 - y2;
       const dist = Math.hypot(dx, dy);
       if (lastTouchDistance.current) {
-        const factor = dist / lastTouchDistance.current;
-        setScale(prev => Math.max(0.2, Math.min(5, prev * factor)));
+        const factorDist = dist / lastTouchDistance.current;
+        setScale(prevScale => {
+          const newScale = Math.max(0.2, Math.min(5, prevScale * factorDist));
+          const factor = newScale / prevScale;
+          setTranslate(prev => ({
+            x: prev.x * factor + (1 - factor) * midX,
+            y: prev.y * factor + (1 - factor) * midY,
+          }));
+          return newScale;
+        });
       }
       lastTouchDistance.current = dist;
     } else {
@@ -250,7 +274,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           width: '100%',
-          height: '100%',
+          height: '100%'
         }}
       >
         <canvas
@@ -271,4 +295,3 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 };
 
 export default DrawingCanvas;
-
