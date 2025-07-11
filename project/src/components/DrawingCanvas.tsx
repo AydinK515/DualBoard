@@ -223,7 +223,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     saveToHistory();
   };
 
-  // Touch pinch-zoom vs draw: center on pinch midpoint
+  // Touch pinch-zoom vs draw: center on midpoint
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && outerRef.current) {
       const rect = outerRef.current.getBoundingClientRect();
@@ -274,12 +274,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           width: '100%',
-          height: '100%'
+          height: '100%',
         }}
       >
         <canvas
           ref={canvasRef}
-          className={`border-0 cursor-crosshair ${isMirrored ? 'scale-x-[-1]' : ''}`}
+          className={`cursor-crosshair ${isMirrored ? 'scale-x-[-1]' : ''}`}
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}
@@ -287,7 +287,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           onTouchStart={startDraw}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          style={{ touchAction: 'none', backgroundColor: 'white' }}
+          style={{
+            touchAction: 'none',
+            backgroundColor: 'white',
+            border: '4px solid #ccc',      // ← clear box around drawable area
+          }}
         />
       </div>
     </div>
