@@ -1,8 +1,15 @@
+// src/App.tsx
 import React, { useState, useRef } from 'react';
 import DrawingCanvas from './components/DrawingCanvas';
 import MirrorCanvas from './components/MirrorCanvas';
 import Toolbar from './components/Toolbar';
 import ResizeHandle from './components/ResizeHandle';
+
+interface ViewTransform {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
 
 function App() {
   const [isDrawing, setIsDrawing] = useState(false);
@@ -14,11 +21,18 @@ function App() {
   const [redoAction, setRedoAction] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  
+
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [tutorViewHeight, setTutorViewHeight] = useState(400); // pixels
-  const [studentViewHeight, setStudentViewHeight] = useState(400); // pixels
+  const [tutorViewHeight, setTutorViewHeight] = useState(400);
+  const [studentViewHeight, setStudentViewHeight] = useState(400);
   const [isResizing, setIsResizing] = useState<'tutor' | 'student' | null>(null);
+
+  // ← NEW: track the tutor’s pan/zoom state
+  const [viewTransform, setViewTransform] = useState<ViewTransform>({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   const handleHistoryChange = (data: string, canUndoState: boolean, canRedoState: boolean) => {
     setCanvasData(data);
@@ -40,7 +54,6 @@ function App() {
 
   const handleExport = () => {
     if (!canvasData) return;
-    
     const link = document.createElement('a');
     link.download = `mirrorboard-${new Date().toISOString().split('T')[0]}.png`;
     link.href = canvasData;
@@ -52,7 +65,7 @@ function App() {
     setIsResizing('tutor');
     const startY = e.clientY;
     const startHeight = tutorViewHeight;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       const deltaY = e.clientY - startY;
       const newHeight = Math.max(200, startHeight + deltaY);
@@ -74,7 +87,7 @@ function App() {
     setIsResizing('student');
     const startY = e.clientY;
     const startHeight = studentViewHeight;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       const deltaY = e.clientY - startY;
       const newHeight = Math.max(200, startHeight + deltaY);
@@ -132,8 +145,8 @@ function App() {
 
       {/* Main Drawing Area */}
       <div className="flex flex-col">
-        {/* Drawing Canvas */}
-        <div 
+        {/* Tutor View */}
+        <div
           className="relative"
           style={{ height: `${tutorViewHeight}px` }}
         >
@@ -159,6 +172,8 @@ function App() {
                 setUndoAction={setUndoAction}
                 redoAction={redoAction}
                 setRedoAction={setRedoAction}
+                // ← NEW: report tutor’s view state upward
+                onViewChange={setViewTransform}
               />
             </div>
           </div>
@@ -172,8 +187,8 @@ function App() {
           isTutorHandle={true}
         />
 
-        {/* Mirror Canvas */}
-        <div 
+        {/* Student View */}
+        <div
           className="relative"
           style={{ height: `${studentViewHeight}px` }}
         >
@@ -187,11 +202,15 @@ function App() {
           </div>
           <div className="h-full p-4">
             <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <MirrorCanvas sourceData={canvasData} />
+              <MirrorCanvas
+                sourceData={canvasData}
+                // ← NEW: consume tutor’s view state here
+                viewTransform={viewTransform}
+              />
             </div>
           </div>
         </div>
-        
+
         {/* Student Resize Handle */}
         <ResizeHandle
           onMouseDown={handleStudentResizeStart}

@@ -1,4 +1,10 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+// src/components/DrawingCanvas.tsx
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 
 interface DrawingCanvasProps {
   isDrawing: boolean;
@@ -13,6 +19,7 @@ interface DrawingCanvasProps {
   redoAction: boolean;
   setRedoAction: (redo: boolean) => void;
   isMirrored?: boolean;
+  onViewChange?: (view: { scale: number; offsetX: number; offsetY: number }) => void;
 }
 
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
@@ -28,9 +35,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   redoAction,
   setRedoAction,
   isMirrored = false,
+  onViewChange,
 }) => {
   const outerRef = useRef<HTMLDivElement>(null);
-  const transformRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [history, setHistory] = useState<string[]>([]);
@@ -43,33 +50,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const lastMouse = useRef({ x: 0, y: 0 });
   const lastTouchDistance = useRef<number | null>(null);
 
-  const handleZoom = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = Math.max(0.2, Math.min(5, scale * delta));
-    setScale(newScale);
-  };
-
-  const startPan = (e: React.MouseEvent) => {
-    if (e.button !== 1) return;
-    e.preventDefault();
-    isPanning.current = true;
-    lastMouse.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const pan = (e: React.MouseEvent) => {
-    if (!isPanning.current) return;
-    e.preventDefault();
-    const dx = e.clientX - lastMouse.current.x;
-    const dy = e.clientY - lastMouse.current.y;
-    lastMouse.current = { x: e.clientX, y: e.clientY };
-    setTranslate(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-  };
-
-  const endPan = () => {
-    isPanning.current = false;
-  };
-
+  // History management callbacks must be declared before useEffects that reference them
   const restoreFromHistory = useCallback((index: number) => {
     if (!context || !canvasRef.current) return;
     const img = new Image();
@@ -77,22 +58,36 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
       context.drawImage(img, 0, 0);
-      onHistoryChange(canvasRef.current!.toDataURL(), index > 0, index < history.length - 1);
+      onHistoryChange(
+        canvasRef.current!.toDataURL(),
+        index > 0,
+        index < history.length - 1
+      );
     };
     img.src = history[index];
   }, [context, history, onHistoryChange]);
 
   const saveToHistory = useCallback(() => {
     if (!canvasRef.current) return;
-    const canvasData = canvasRef.current.toDataURL();
+    const data = canvasRef.current.toDataURL();
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(canvasData);
+    newHistory.push(data);
     setHistory(newHistory);
-    const newIndex = newHistory.length - 1;
-    setHistoryIndex(newIndex);
-    onHistoryChange(canvasData, newIndex > 0, newIndex < newHistory.length - 1);
+    const idx = newHistory.length - 1;
+    setHistoryIndex(idx);
+    onHistoryChange(data, idx > 0, idx < newHistory.length - 1);
   }, [history, historyIndex, onHistoryChange]);
 
+  // Report pan/zoom changes
+  useEffect(() => {
+    onViewChange?.({
+      scale,
+      offsetX: translate.x,
+      offsetY: translate.y,
+    });
+  }, [scale, translate.x, translate.y, onViewChange]);
+
+  // Initialize canvas (runs only once)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -108,12 +103,13 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setContext(ctx);
 
-    const initialState = canvas.toDataURL();
-    setHistory([initialState]);
+    const initial = canvas.toDataURL();
+    setHistory([initial]);
     setHistoryIndex(0);
-    onHistoryChange(initialState, false, false);
+    onHistoryChange(initial, false, false);
   }, []);
 
+  // Clear canvas action
   useEffect(() => {
     if (clearCanvas && context && canvasRef.current) {
       context.fillStyle = '#ffffff';
@@ -121,8 +117,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       setClearCanvas(false);
       saveToHistory();
     }
-  }, [clearCanvas, context, setClearCanvas]);
+  }, [clearCanvas, context, setClearCanvas, saveToHistory]);
 
+  // Undo and redo
   useEffect(() => {
     if (undoAction && historyIndex > 0) {
       const newIndex = historyIndex - 1;
@@ -130,7 +127,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       setHistoryIndex(newIndex);
       setUndoAction(false);
     }
-  }, [undoAction]);
+  }, [undoAction, historyIndex, restoreFromHistory, setUndoAction]);
 
   useEffect(() => {
     if (redoAction && historyIndex < history.length - 1) {
@@ -139,80 +136,101 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       setHistoryIndex(newIndex);
       setRedoAction(false);
     }
-  }, [redoAction]);
+  }, [redoAction, historyIndex, history.length, restoreFromHistory, setRedoAction]);
 
-  const getPointFromEvent = (e: React.MouseEvent | React.TouchEvent) => {
+  // Zoom handler
+  const handleZoom = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.1 : 0.9;
+    setScale(prev => Math.max(0.2, Math.min(5, prev * delta)));
+  };
+
+  // Pan handlers
+  const startPan = (e: React.MouseEvent) => {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    isPanning.current = true;
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+  };
+  const pan = (e: React.MouseEvent) => {
+    if (!isPanning.current) return;
+    e.preventDefault();
+    const dx = e.clientX - lastMouse.current.x;
+    const dy = e.clientY - lastMouse.current.y;
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+    setTranslate(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+  };
+  const endPan = () => { isPanning.current = false; };
+
+  // Convert event to canvas-space
+  const getPoint = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    let clientX: number, clientY: number;
+    let cx: number, cy: number;
     if ('touches' in e) {
       if (e.touches.length === 0) return null;
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+      cx = e.touches[0].clientX;
+      cy = e.touches[0].clientY;
     } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+      cx = e.clientX;
+      cy = e.clientY;
     }
-    return {
-      x: (clientX - rect.left) / scale,
-      y: (clientY - rect.top) / scale,
-    };
+    return { x: (cx - rect.left) / scale, y: (cy - rect.top) / scale };
   };
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+  // Drawing handlers
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!context || isMirrored) return;
-    if ('button' in e && e.button !== 0) return; // Only LMB
-    const point = getPointFromEvent(e);
-    if (!point) return;
+    if ('button' in e && e.button !== 0) return;
+    const pt = getPoint(e);
+    if (!pt) return;
     setIsDrawing(true);
-    setLastPoint(point);
+    setLastPoint(pt);
     context.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
     context.strokeStyle = tool === 'pen' ? '#000000' : '#ffffff';
     context.lineWidth = brushSize;
     context.beginPath();
-    context.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+    context.arc(pt.x, pt.y, brushSize / 2, 0, Math.PI * 2);
     context.fill();
   };
-
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || !context || !lastPoint || isMirrored) return;
-    const point = getPointFromEvent(e);
-    if (!point) return;
+    const pt = getPoint(e);
+    if (!pt) return;
     context.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
     context.strokeStyle = tool === 'pen' ? '#000000' : '#ffffff';
     context.lineWidth = brushSize;
     context.beginPath();
     context.moveTo(lastPoint.x, lastPoint.y);
-    context.lineTo(point.x, point.y);
+    context.lineTo(pt.x, pt.y);
     context.stroke();
-    setLastPoint(point);
+    setLastPoint(pt);
   };
-
-  const stopDrawing = () => {
+  const stopDraw = () => {
     if (!isDrawing || isMirrored) return;
     setIsDrawing(false);
     setLastPoint(null);
     saveToHistory();
   };
 
+  // Touch pinch-zoom vs draw
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (lastTouchDistance.current !== null) {
-        const delta = distance / lastTouchDistance.current;
-        setScale(prev => Math.max(0.2, Math.min(5, prev * delta)));
+      const dist = Math.hypot(dx, dy);
+      if (lastTouchDistance.current) {
+        const factor = dist / lastTouchDistance.current;
+        setScale(prev => Math.max(0.2, Math.min(5, prev * factor)));
       }
-      lastTouchDistance.current = distance;
+      lastTouchDistance.current = dist;
     } else {
       draw(e);
     }
   };
-
   const handleTouchEnd = (e: React.TouchEvent) => {
-    stopDrawing();
+    stopDraw();
     if (e.touches.length < 2) lastTouchDistance.current = null;
   };
 
@@ -228,7 +246,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       style={{ touchAction: 'none' }}
     >
       <div
-        ref={transformRef}
         style={{
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: '0 0',
@@ -239,11 +256,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         <canvas
           ref={canvasRef}
           className={`border-0 cursor-crosshair ${isMirrored ? 'scale-x-[-1]' : ''}`}
-          onMouseDown={startDrawing}
+          onMouseDown={startDraw}
           onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
+          onMouseUp={stopDraw}
+          onMouseLeave={stopDraw}
+          onTouchStart={startDraw}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{ touchAction: 'none', backgroundColor: 'white' }}
@@ -254,3 +271,4 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 };
 
 export default DrawingCanvas;
+
