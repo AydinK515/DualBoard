@@ -1,11 +1,23 @@
-import React from 'react';
-import { Pen, Eraser, Undo, Redo, RotateCcw, Download } from 'lucide-react';
+// src/components/Toolbar.tsx
+import React, { useState } from 'react';
+import {
+  Pen,
+  Eraser,
+  Undo,
+  Redo,
+  RotateCcw,
+  Download,
+  Palette,
+} from 'lucide-react';
+import { HexColorPicker } from 'react-colorful';
 
 interface ToolbarProps {
   tool: 'pen' | 'eraser';
   setTool: (tool: 'pen' | 'eraser') => void;
   brushSize: number;
   setBrushSize: (size: number) => void;
+  color: string;
+  setColor: (color: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -20,6 +32,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   setTool,
   brushSize,
   setBrushSize,
+  color,
+  setColor,
   onUndo,
   onRedo,
   onClear,
@@ -28,11 +42,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
   canRedo,
   isTutorFacing = false,
 }) => {
+  const [showCustom, setShowCustom] = useState(false);
+  const presets = ['#000000', '#ff0000', '#0000ff'];
+
   return (
-    <div className={`bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm ${
-      isTutorFacing ? 'rotate-180' : ''
-    }`}>
+    <div
+      className={`relative z-50 bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm ${
+        isTutorFacing ? 'rotate-180' : ''
+      }`}
+    >
       <div className="flex items-center space-x-4">
+        {/* Tool Buttons */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setTool('pen')}
@@ -58,6 +78,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </button>
         </div>
 
+        {/* Size Slider */}
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium text-gray-700">Size:</span>
           <input
@@ -78,6 +99,45 @@ const Toolbar: React.FC<ToolbarProps> = ({
           />
           <span className="text-sm text-gray-600 w-8">{brushSize}</span>
         </div>
+
+        {/* Color Picker */}
+        <div className="relative flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-700">Color:</span>
+          {presets.map((preset) => (
+            <button
+              key={preset}
+              onClick={() => {
+                setColor(preset);
+                setShowCustom(false);
+              }}
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                color === preset ? 'border-blue-500' : 'border-gray-300'
+              }`}
+              style={{ backgroundColor: preset }}
+              title={preset}
+            />
+          ))}
+
+          {/* toggle custom wheel */}
+          <button
+            onClick={() => setShowCustom((v) => !v)}
+            className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-transform hover:scale-110"
+            title="Custom Color"
+          >
+            <Palette size={16} />
+          </button>
+
+          {showCustom && (
+            <div
+              className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded shadow-lg z-50"
+              style={{
+                transform: isTutorFacing ? 'rotate(180deg)' : undefined,
+              }}
+            >
+              <HexColorPicker color={color} onChange={setColor} />
+            </div>
+          )}
+        </div>
       </div>
 
       {isTutorFacing && (
@@ -88,6 +148,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
       )}
 
+      {/* Undo/Redo/Clear/Export */}
       <div className="flex items-center space-x-2">
         <button
           onClick={onUndo}

@@ -19,6 +19,8 @@ function App() {
   const [undoAction, setUndoAction] = useState(false);
   const [redoAction, setRedoAction] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
+  const [color, setColor] = useState('#000000');
+
   const [canRedo, setCanRedo] = useState(false);
   const [viewTransform, setViewTransform] = useState<ViewTransform>({
     scale: 1,
@@ -61,6 +63,8 @@ function App() {
           setTool={setTool}
           brushSize={brushSize}
           setBrushSize={setBrushSize}
+          color={color}
+          setColor={setColor}
           onUndo={() => setUndoAction(true)}
           onRedo={() => setRedoAction(true)}
           onClear={() => setClearCanvas(true)}
@@ -95,6 +99,7 @@ function App() {
                 isDrawing={isDrawing}
                 setIsDrawing={setIsDrawing}
                 tool={tool}
+                color={color}
                 brushSize={brushSize}
                 onHistoryChange={handleHistoryChange}
                 clearCanvas={clearCanvas}

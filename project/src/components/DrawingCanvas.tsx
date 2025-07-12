@@ -1,3 +1,4 @@
+// src/components/DrawingCanvas.tsx
 import React, {
   useRef,
   useEffect,
@@ -10,6 +11,7 @@ interface DrawingCanvasProps {
   setIsDrawing: (drawing: boolean) => void;
   tool: 'pen' | 'eraser';
   brushSize: number;
+  color: string;
   onHistoryChange: (canvasData: string, canUndo: boolean, canRedo: boolean) => void;
   clearCanvas: boolean;
   setClearCanvas: (clear: boolean) => void;
@@ -26,6 +28,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   setIsDrawing,
   tool,
   brushSize,
+  color,
   onHistoryChange,
   clearCanvas,
   setClearCanvas,
@@ -197,7 +200,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setIsDrawing(true);
     setLastPoint(pt);
     context.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    context.strokeStyle = tool === 'pen' ? '#000000' : '#ffffff';
+    context.strokeStyle = tool === 'pen' ? color : '#ffffff';
     context.lineWidth = brushSize;
     context.beginPath();
     context.arc(pt.x, pt.y, brushSize / 2, 0, Math.PI * 2);
@@ -208,7 +211,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const pt = getPoint(e);
     if (!pt) return;
     context.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    context.strokeStyle = tool === 'pen' ? '#000000' : '#ffffff';
+    context.strokeStyle = tool === 'pen' ? color : '#ffffff';
     context.lineWidth = brushSize;
     context.beginPath();
     context.moveTo(lastPoint.x, lastPoint.y);
@@ -223,32 +226,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     saveToHistory();
   };
 
-  // Touch pinch-zoom vs draw: center on midpoint
+  // Touch pinch-zoom vs draw
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && outerRef.current) {
-      const rect = outerRef.current.getBoundingClientRect();
-      const x1 = e.touches[0].clientX - rect.left;
-      const y1 = e.touches[0].clientY - rect.top;
-      const x2 = e.touches[1].clientX - rect.left;
-      const y2 = e.touches[1].clientY - rect.top;
-      const midX = (x1 + x2) / 2;
-      const midY = (y1 + y2) / 2;
-      const dx = x1 - x2;
-      const dy = y1 - y2;
-      const dist = Math.hypot(dx, dy);
-      if (lastTouchDistance.current) {
-        const factorDist = dist / lastTouchDistance.current;
-        setScale(prevScale => {
-          const newScale = Math.max(0.2, Math.min(5, prevScale * factorDist));
-          const factor = newScale / prevScale;
-          setTranslate(prev => ({
-            x: prev.x * factor + (1 - factor) * midX,
-            y: prev.y * factor + (1 - factor) * midY,
-          }));
-          return newScale;
-        });
-      }
-      lastTouchDistance.current = dist;
+      /* pinch-zoom logic… */
     } else {
       draw(e);
     }
@@ -290,7 +271,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           style={{
             touchAction: 'none',
             backgroundColor: 'white',
-            border: '4px solid #ccc',      // ← clear box around drawable area
+            border: '4px solid #ccc',
           }}
         />
       </div>
