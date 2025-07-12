@@ -69,8 +69,8 @@ const MirrorCanvas: React.FC<MirrorCanvasProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full border-0"
-      style={{ touchAction: 'none' }}
+      className="border-0"
+      style={{ touchAction: 'none', width: 'auto', height: 'auto' }}
     />
   );
 };
