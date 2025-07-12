@@ -63,10 +63,18 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <input
             type="range"
             min="1"
-            max="20"
+            max="30"
             value={brushSize}
             onChange={(e) => setBrushSize(Number(e.target.value))}
-            className="w-20"
+            className="w-32 h-4 cursor-pointer accent-blue-500"
+            style={{
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              height: '6px',
+              borderRadius: '4px',
+              backgroundColor: '#e5e7eb',
+              outline: 'none',
+            }}
           />
           <span className="text-sm text-gray-600 w-8">{brushSize}</span>
         </div>
