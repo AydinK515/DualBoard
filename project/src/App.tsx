@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DrawingCanvas from './components/DrawingCanvas';
 import MirrorCanvas from './components/MirrorCanvas';
 import Toolbar from './components/Toolbar';
@@ -14,20 +14,38 @@ function App() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   const [brushSize, setBrushSize] = useState(3);
+  const [color, setColor] = useState('#000000');
   const [canvasData, setCanvasData] = useState<string>('');
   const [clearCanvas, setClearCanvas] = useState(false);
   const [undoAction, setUndoAction] = useState(false);
   const [redoAction, setRedoAction] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
-  const [color, setColor] = useState('#000000');
-
   const [canRedo, setCanRedo] = useState(false);
+
   const [viewTransform, setViewTransform] = useState<ViewTransform>({
     scale: 1,
     offsetX: 0,
     offsetY: 0,
   });
 
+  // --- Fullscreen logic ---
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(console.error);
+    } else {
+      document.exitFullscreen().catch(console.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  // History callback
   const handleHistoryChange = (data: string, canUndoState: boolean, canRedoState: boolean) => {
     setCanvasData(data);
     setCanUndo(canUndoState);
@@ -36,52 +54,54 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">MirrorBoard</h1>
-            <p className="text-sm text-gray-600">Split-screen whiteboard for face-to-face tutoring</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-sm font-medium text-gray-700">Tutor View</span>
+      {/* Header (hidden in fullscreen) */}
+      {!isFullscreen && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">MirrorBoard</h1>
+              <p className="text-sm text-gray-600">Split-screen whiteboard for face-to-face tutoring</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium text-gray-700">Student View</span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Tutor View</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Student View</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Toolbar */}
-      <div className="shrink-0">
-        <Toolbar
-          tool={tool}
-          setTool={setTool}
-          brushSize={brushSize}
-          setBrushSize={setBrushSize}
-          color={color}
-          setColor={setColor}
-          onUndo={() => setUndoAction(true)}
-          onRedo={() => setRedoAction(true)}
-          onClear={() => setClearCanvas(true)}
-          onExport={() => {
-            if (!canvasData) return;
-            const link = document.createElement('a');
-            link.download = `mirrorboard-${new Date().toISOString().split('T')[0]}.png`;
-            link.href = canvasData;
-            link.click();
-          }}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          isTutorFacing={true}
-        />
-      </div>
+      <Toolbar
+        tool={tool}
+        setTool={setTool}
+        brushSize={brushSize}
+        setBrushSize={setBrushSize}
+        color={color}
+        setColor={setColor}
+        onUndo={() => setUndoAction(true)}
+        onRedo={() => setRedoAction(true)}
+        onClear={() => setClearCanvas(true)}
+        onExport={() => {
+          if (!canvasData) return;
+          const link = document.createElement('a');
+          link.download = `mirrorboard-${new Date().toISOString().split('T')[0]}.png`;
+          link.href = canvasData;
+          link.click();
+        }}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        isTutorFacing={true}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={handleToggleFullscreen}
+      />
 
-      {/* Views */}
+      {/* Main Drawing Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tutor View */}
         <div className="relative h-1/2">
@@ -99,8 +119,8 @@ function App() {
                 isDrawing={isDrawing}
                 setIsDrawing={setIsDrawing}
                 tool={tool}
-                color={color}
                 brushSize={brushSize}
+                color={color}
                 onHistoryChange={handleHistoryChange}
                 clearCanvas={clearCanvas}
                 setClearCanvas={setClearCanvas}
@@ -126,26 +146,23 @@ function App() {
           </div>
           <div className="h-full p-4">
             <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <MirrorCanvas
-                sourceData={canvasData}
-                viewTransform={viewTransform}
-              />
+              <MirrorCanvas sourceData={canvasData} viewTransform={viewTransform} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Tutor draws on top, student sees rotated version on bottom
-          </div>
-          <div className="text-sm text-gray-500">
-            Works with touch, stylus, or mouse
+      {/* Footer (hidden in fullscreen) */}
+      {!isFullscreen && (
+        <div className="bg-white border-t border-gray-200 px-6 py-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Tutor draws on top, student sees rotated version on bottom
+            </div>
+            <div className="text-sm text-gray-500">Works with touch, stylus, or mouse</div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

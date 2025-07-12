@@ -8,6 +8,8 @@ import {
   RotateCcw,
   Download,
   Palette,
+  Fullscreen,
+  Minimize2,
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 
@@ -25,6 +27,8 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   isTutorFacing?: boolean;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -41,6 +45,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   canUndo,
   canRedo,
   isTutorFacing = false,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   const [showCustom, setShowCustom] = useState(false);
   const presets = ['#000000', '#ff0000', '#0000ff'];
@@ -51,8 +57,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
         isTutorFacing ? 'rotate-180' : ''
       }`}
     >
+      {/* Left group: Pen/Eraser, Size, Color */}
       <div className="flex items-center space-x-4">
-        {/* Tool Buttons */}
+        {/* Pen / Eraser */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setTool('pen')}
@@ -118,7 +125,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             />
           ))}
 
-          {/* toggle custom wheel */}
+          {/* Toggle custom wheel */}
           <button
             onClick={() => setShowCustom((v) => !v)}
             className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-transform hover:scale-110"
@@ -140,6 +147,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
       </div>
 
+      {/* Tutor perspective notice */}
       {isTutorFacing && (
         <div className="absolute left-1/2 transform -translate-x-1/2 top-1/2 -translate-y-1/2 rotate-180">
           <span className="text-xs text-gray-500 whitespace-nowrap">
@@ -148,7 +156,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
       )}
 
-      {/* Undo/Redo/Clear/Export */}
+      {/* Right group: Undo, Redo, Clear, Export, Fullscreen */}
       <div className="flex items-center space-x-2">
         <button
           onClick={onUndo}
@@ -187,6 +195,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
           title="Export as PNG"
         >
           <Download size={20} />
+        </button>
+        <button
+          onClick={onToggleFullscreen}
+          className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+        >
+          {isFullscreen ? <Minimize2 size={20} /> : <Fullscreen size={20} />}
         </button>
       </div>
     </div>
