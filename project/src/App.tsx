@@ -12,7 +12,7 @@ interface ViewTransform {
 
 function App() {
   const [isDrawing, setIsDrawing] = useState(false);
-  const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
+  const [tool, setTool] = useState<'pen' | 'eraser' | 'textbox'>('pen');
   const [brushSize, setBrushSize] = useState(3);
   const [color, setColor] = useState('#000000');
   const [canvasData, setCanvasData] = useState<string>('');

@@ -8,14 +8,15 @@ import {
   RotateCcw,
   Download,
   Palette,
+  Type,
   Fullscreen,
   Minimize2,
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 
 interface ToolbarProps {
-  tool: 'pen' | 'eraser';
-  setTool: (tool: 'pen' | 'eraser') => void;
+  tool: 'pen' | 'eraser' | 'textbox';
+  setTool: (tool: 'pen' | 'eraser' | 'textbox') => void;
   brushSize: number;
   setBrushSize: (size: number) => void;
   color: string;
@@ -82,6 +83,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
             title="Eraser"
           >
             <Eraser size={20} />
+          </button>
+                    <button
+            onClick={() => setTool('textbox')}
+            className={`p-2 rounded-lg transition-colors ${
+              tool === 'textbox'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title="Text Box"
+          >
+            <Type size={20} />
           </button>
         </div>
 
