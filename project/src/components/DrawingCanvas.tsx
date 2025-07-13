@@ -55,6 +55,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   const outerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const transformRef = useRef<HTMLDivElement>(null);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -217,24 +218,28 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     saveToHistory();
   }, [saveToHistory]);
 
-  // Zoom handler: center on cursor
+  // Fixed zoom handler
   const handleZoom = (e: React.WheelEvent) => {
     e.preventDefault();
     if (!outerRef.current) return;
-    const rect = outerRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
+    
+    const containerRect = outerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - containerRect.left;
+    const mouseY = e.clientY - containerRect.top;
+    
     const delta = e.deltaY < 0 ? 1.1 : 0.9;
-
-    setScale(prevScale => {
-      const newScale = Math.max(0.2, Math.min(5, prevScale * delta));
-      const factor = newScale / prevScale;
-      setTranslate(prev => ({
-        x: prev.x * factor + (1 - factor) * offsetX,
-        y: prev.y * factor + (1 - factor) * offsetY,
-      }));
-      return newScale;
-    });
+    const newScale = Math.max(0.1, Math.min(10, scale * delta));
+    
+    // Calculate the point in canvas space that should remain fixed
+    const canvasPointX = (mouseX - translate.x) / scale;
+    const canvasPointY = (mouseY - translate.y) / scale;
+    
+    // Calculate new translate to keep that canvas point under the mouse
+    const newTranslateX = mouseX - canvasPointX * newScale;
+    const newTranslateY = mouseY - canvasPointY * newScale;
+    
+    setScale(newScale);
+    setTranslate({ x: newTranslateX, y: newTranslateY });
   };
 
   // Pan handlers
@@ -256,21 +261,99 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     isPanning.current = false;
   };
 
-  // Convert event to canvas-space
+  // Convert event to canvas-space coordinates
   const getPoint = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    let cx: number, cy: number;
+    if (!outerRef.current) return null;
+    
+    const containerRect = outerRef.current.getBoundingClientRect();
+    let clientX: number, clientY: number;
+    
     if ('touches' in e) {
       if (e.touches.length === 0) return null;
-      cx = e.touches[0].clientX;
-      cy = e.touches[0].clientY;
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
     } else {
-      cx = e.clientX;
-      cy = e.clientY;
+      clientX = e.clientX;
+      clientY = e.clientY;
     }
-    return { x: (cx - rect.left) / scale, y: (cy - rect.top) / scale };
+    
+    // Convert screen coordinates to canvas coordinates
+    const mouseX = clientX - containerRect.left;
+    const mouseY = clientY - containerRect.top;
+    
+    // Transform to canvas space
+    const x = (mouseX - translate.x) / scale;
+    const y = (mouseY - translate.y) / scale;
+    
+    return { x, y };
+  };
+
+  // Touch pinch-zoom implementation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setSelectedTextBox(null);
+    
+    if (e.touches.length === 2) {
+      // Start pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      );
+      lastTouchDistance.current = distance;
+    } else {
+      // Start drawing
+      startDraw(e);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && outerRef.current) {
+      e.preventDefault();
+      
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      );
+      
+      if (lastTouchDistance.current) {
+        const delta = distance / lastTouchDistance.current;
+        
+        // Get center point of the pinch
+        const centerX = (touch1.clientX + touch2.clientX) / 2;
+        const centerY = (touch1.clientY + touch2.clientY) / 2;
+        
+        const containerRect = outerRef.current.getBoundingClientRect();
+        const mouseX = centerX - containerRect.left;
+        const mouseY = centerY - containerRect.top;
+        
+        const newScale = Math.max(0.1, Math.min(10, scale * delta));
+        
+        // Calculate the point in canvas space that should remain fixed
+        const canvasPointX = (mouseX - translate.x) / scale;
+        const canvasPointY = (mouseY - translate.y) / scale;
+        
+        // Calculate new translate to keep that canvas point under the touch center
+        const newTranslateX = mouseX - canvasPointX * newScale;
+        const newTranslateY = mouseY - canvasPointY * newScale;
+        
+        setScale(newScale);
+        setTranslate({ x: newTranslateX, y: newTranslateY });
+      }
+      
+      lastTouchDistance.current = distance;
+    } else {
+      draw(e);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    stopDraw();
+    if (e.touches.length < 2) {
+      lastTouchDistance.current = null;
+    }
   };
 
   // Drawing handlers
@@ -294,6 +377,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     context.arc(pt.x, pt.y, brushSize / 2, 0, Math.PI * 2);
     context.fill();
   };
+  
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || !context || !lastPoint || isMirrored) return;
     const pt = getPoint(e);
@@ -307,6 +391,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     context.stroke();
     setLastPoint(pt);
   };
+  
   const stopDraw = () => {
     if (!isDrawing || isMirrored) return;
     setIsDrawing(false);
@@ -314,32 +399,15 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     saveToHistory();
   };
 
-  // Touch pinch-zoom vs draw
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && outerRef.current) {
-      /* pinch-zoom logic… */
-    } else {
-      draw(e);
-    }
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    stopDraw();
-    if (e.touches.length < 2) lastTouchDistance.current = null;
-  };
-
   // Resize handlers
   const startResize = (e: React.MouseEvent, textBoxId: string) => {
     e.stopPropagation();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
     const textBox = textBoxes.find(tb => tb.id === textBoxId);
     if (!textBox) return;
     
     setIsResizing({
       textBoxId,
-      corner: 'se', // Always bottom-right
+      corner: 'se',
       startX: e.clientX,
       startY: e.clientY,
       startWidth: textBox.width,
@@ -354,12 +422,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         const dx = e.clientX - isResizing.startX;
         const dy = e.clientY - isResizing.startY;
         
-        // Only handle bottom-right resize
         const newWidth = Math.max(100, isResizing.startWidth + dx / scale);
         const newHeight = Math.max(30, isResizing.startHeight + dy / scale);
         
-        // Calculate exact proportional font size based on height
-        // The font size should be proportional to the height so text fills the box
         const heightRatio = newHeight / isResizing.startHeight;
         const newFontSize = Math.max(8, Math.min(72, isResizing.startFontSize * heightRatio));
         
@@ -376,11 +441,13 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           )
         );
       } else if (selectedTextBox && dragOffset.x !== 0 && dragOffset.y !== 0) {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - dragOffset.x) / scale;
-        const y = (e.clientY - rect.top - dragOffset.y) / scale;
+        if (!outerRef.current) return;
+        const containerRect = outerRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - containerRect.left;
+        const mouseY = e.clientY - containerRect.top;
+        
+        const x = (mouseX - dragOffset.x - translate.x) / scale;
+        const y = (mouseY - dragOffset.y - translate.y) / scale;
         
         setTextBoxes(prev =>
           prev.map(tb =>
@@ -408,14 +475,13 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isResizing, selectedTextBox, dragOffset, scale, saveTextBoxHistory, textBoxes]);
+  }, [isResizing, selectedTextBox, dragOffset, scale, translate, saveTextBoxHistory]);
 
   return (
     <div
       ref={outerRef}
       onWheel={handleZoom}
       onMouseDown={(e) => {
-        // Deselect textbox when clicking on outer container
         if (e.target === outerRef.current) {
           setSelectedTextBox(null);
         }
@@ -428,6 +494,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       style={{ touchAction: 'none' }}
     >
       <div
+        ref={transformRef}
         style={{
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: '0 0',
@@ -439,18 +506,13 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           ref={canvasRef}
           className={`cursor-crosshair ${isMirrored ? 'scale-x-[-1]' : ''}`}
           onMouseDown={(e) => {
-            // Deselect textbox when clicking on canvas
             setSelectedTextBox(null);
             startDraw(e);
           }}
           onMouseMove={draw}
           onMouseUp={stopDraw}
           onMouseLeave={stopDraw}
-          onTouchStart={(e) => {
-            // Deselect textbox when touching canvas
-            setSelectedTextBox(null);
-            startDraw(e);
-          }}
+          onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{
@@ -486,9 +548,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               e.stopPropagation();
               setSelectedTextBox(textBox.id);
               const rect = e.currentTarget.getBoundingClientRect();
+              if (!outerRef.current) return;
+              const containerRect = outerRef.current.getBoundingClientRect();
               setDragOffset({
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
+                x: (e.clientX - containerRect.left - translate.x) / scale - textBox.x,
+                y: (e.clientY - containerRect.top - translate.y) / scale - textBox.y,
               });
             }}
             onDoubleClick={() => {
