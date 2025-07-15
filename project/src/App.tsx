@@ -1,167 +1,182 @@
-// src/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-import DrawingCanvas from './components/DrawingCanvas';
-import MirrorCanvas from './components/MirrorCanvas';
-import Toolbar from './components/Toolbar';
-
-interface ViewTransform {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-}
+import React, { useRef } from 'react';
+import { Canvas, CanvasRef } from './components/Canvas';
+import { Toolbar } from './components/Toolbar';
+import { RoleIndicator } from './components/RoleIndicator';
+import { FlipButton } from './components/FlipButton';
+import { useDrawing } from './hooks/useDrawing';
+import { useFullscreen } from './hooks/useFullscreen';
+import { useCanvasInteractions } from './hooks/useCanvasInteractions';
+import { exportCanvas } from './utils/export';
 
 function App() {
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [tool, setTool] = useState<'pen' | 'eraser' | 'textbox'>('pen');
-  const [brushSize, setBrushSize] = useState(3);
-  const [color, setColor] = useState('#000000');
-  const [canvasData, setCanvasData] = useState<string>('');
-  const [clearCanvas, setClearCanvas] = useState(false);
-  const [undoAction, setUndoAction] = useState(false);
-  const [redoAction, setRedoAction] = useState(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
+  const {
+    drawingState,
+    startDrawing,
+    continueDrawing,
+    endDrawing,
+    setTool,
+    setColor,
+    setWidth,
+    toggleGrid,
+    undo,
+    clearCanvas,
+    flipRoles,
+    handleImageUpload,
+    setFullscreen,
+  } = useDrawing();
 
-  const [viewTransform, setViewTransform] = useState<ViewTransform>({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-  });
+  const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const { transform, setTransform } = useCanvasInteractions();
 
-  // --- Fullscreen logic ---
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const tutorCanvasRef = useRef<CanvasRef>(null);
+  const studentCanvasRef = useRef<CanvasRef>(null);
 
-  const handleToggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(console.error);
-    } else {
-      document.exitFullscreen().catch(console.error);
+  // Sync fullscreen state
+  React.useEffect(() => {
+    setFullscreen(isFullscreen);
+  }, [isFullscreen, setFullscreen]);
+
+  const handleExport = () => {
+    const canvas = tutorCanvasRef.current?.getCanvas();
+    if (canvas) {
+      const timestamp = new Date().toISOString().split('T')[0];
+      exportCanvas(canvas, `mirrorboard-${timestamp}`);
     }
-  }, []);
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  // History callback
-  const handleHistoryChange = (data: string, canUndoState: boolean, canRedoState: boolean) => {
-    setCanvasData(data);
-    setCanUndo(canUndoState);
-    setCanRedo(canRedoState);
   };
 
+  const handleImageUploadWrapper = async (file: File) => {
+    try {
+      await handleImageUpload(file);
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      alert('Failed to upload image. Please try again.');
+    }
+  };
+
+  // Calculate exact heights to prevent scrolling
+  const headerHeight = drawingState.isFullscreen ? 0 : 73; // Approximate header height
+  const footerHeight = drawingState.isFullscreen ? 0 : 49; // Approximate footer height
+  const availableHeight = `calc(100vh - ${headerHeight + footerHeight}px)`;
+  const canvasHeight = `calc((100vh - ${headerHeight + footerHeight}px) / 2)`;
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header (hidden in fullscreen) */}
-      {!isFullscreen && (
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      {/* Header - Hidden in fullscreen */}
+      {!drawingState.isFullscreen && (
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">MirrorBoard</h1>
-              <p className="text-sm text-gray-600">Split-screen whiteboard for face-to-face tutoring</p>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">M</span>
+              </div>
+              <h1 className="text-xl font-semibold text-gray-900">MirrorBoard</h1>
+              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                Face-to-Face Tutoring
+              </span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Tutor View</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Student View</span>
-              </div>
+            
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Elements:</span> {drawingState.elements.length}
             </div>
           </div>
-        </div>
+        </header>
       )}
 
-      {/* Toolbar */}
-      <Toolbar
-        tool={tool}
-        setTool={setTool}
-        brushSize={brushSize}
-        setBrushSize={setBrushSize}
-        color={color}
-        setColor={setColor}
-        onUndo={() => setUndoAction(true)}
-        onRedo={() => setRedoAction(true)}
-        onClear={() => setClearCanvas(true)}
-        onExport={() => {
-          if (!canvasData) return;
-          const link = document.createElement('a');
-          link.download = `mirrorboard-${new Date().toISOString().split('T')[0]}.png`;
-          link.href = canvasData;
-          link.click();
-        }}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        isTutorFacing={true}
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={handleToggleFullscreen}
-      />
-
-      {/* Main Drawing Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tutor View */}
-        <div className="relative h-1/2">
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 rotate-180">
-            <div className="bg-white px-3 py-1 rounded-full shadow-sm border border-gray-200">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Tutor View</span>
-              </div>
-            </div>
-          </div>
-          <div className="h-full p-4">
-            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <DrawingCanvas
-                isDrawing={isDrawing}
-                setIsDrawing={setIsDrawing}
-                tool={tool}
-                brushSize={brushSize}
-                color={color}
-                onHistoryChange={handleHistoryChange}
-                clearCanvas={clearCanvas}
-                setClearCanvas={setClearCanvas}
-                undoAction={undoAction}
-                setUndoAction={setUndoAction}
-                redoAction={redoAction}
-                setRedoAction={setRedoAction}
-                onViewChange={setViewTransform}
-              />
-            </div>
-          </div>
+      {/* Main Canvas Area - Takes remaining space */}
+      <div className="flex flex-col" style={{ height: availableHeight }}>
+        {/* Student Canvas (Top half) */}
+        <div className="relative border-b border-gray-300" style={{ height: canvasHeight }}>
+          <Canvas
+            ref={studentCanvasRef}
+            drawingState={drawingState}
+            isRotated={drawingState.tutorAtBottom}
+            disabled={drawingState.tutorAtBottom}
+            transform={transform}
+            onTransformChange={setTransform}
+            onStartDrawing={drawingState.tutorAtBottom ? undefined : startDrawing}
+            onContinueDrawing={drawingState.tutorAtBottom ? undefined : continueDrawing}
+            onEndDrawing={drawingState.tutorAtBottom ? undefined : endDrawing}
+          />
+          
+          <RoleIndicator 
+            role={drawingState.tutorAtBottom ? 'student' : 'tutor'}
+            tutorAtBottom={drawingState.tutorAtBottom}
+          />
+          
+          {!drawingState.tutorAtBottom && (
+            <Toolbar
+              drawingState={drawingState}
+              onToolChange={setTool}
+              onColorChange={setColor}
+              onWidthChange={setWidth}
+              onToggleGrid={toggleGrid}
+              onUndo={undo}
+              onClear={clearCanvas}
+              onFlipRoles={flipRoles}
+              onExport={handleExport}
+              onImageUpload={handleImageUploadWrapper}
+              onToggleFullscreen={toggleFullscreen}
+              isRotated={true}
+            />
+          )}
         </div>
 
-        {/* Student View */}
-        <div className="relative h-1/2">
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="bg-white px-3 py-1 rounded-full shadow-sm border border-gray-200">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Student View</span>
-              </div>
-            </div>
-          </div>
-          <div className="h-full p-4">
-            <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <MirrorCanvas sourceData={canvasData} viewTransform={viewTransform} />
-            </div>
-          </div>
+        {/* Tutor Canvas (Bottom half) */}
+        <div className="relative" style={{ height: canvasHeight }}>
+          <Canvas
+            ref={tutorCanvasRef}
+            drawingState={drawingState}
+            isRotated={!drawingState.tutorAtBottom}
+            disabled={!drawingState.tutorAtBottom}
+            transform={transform}
+            onTransformChange={setTransform}
+            onStartDrawing={drawingState.tutorAtBottom ? startDrawing : undefined}
+            onContinueDrawing={drawingState.tutorAtBottom ? continueDrawing : undefined}
+            onEndDrawing={drawingState.tutorAtBottom ? endDrawing : undefined}
+          />
+          
+          <RoleIndicator 
+            role={drawingState.tutorAtBottom ? 'tutor' : 'student'}
+            tutorAtBottom={drawingState.tutorAtBottom}
+          />
+          
+          {drawingState.tutorAtBottom && (
+            <Toolbar
+              drawingState={drawingState}
+              onToolChange={setTool}
+              onColorChange={setColor}
+              onWidthChange={setWidth}
+              onToggleGrid={toggleGrid}
+              onUndo={undo}
+              onClear={clearCanvas}
+              onFlipRoles={flipRoles}
+              onExport={handleExport}
+              onImageUpload={handleImageUploadWrapper}
+              onToggleFullscreen={toggleFullscreen}
+              isRotated={false}
+            />
+          )}
         </div>
       </div>
 
-      {/* Footer (hidden in fullscreen) */}
-      {!isFullscreen && (
-        <div className="bg-white border-t border-gray-200 px-6 py-3 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Tutor draws on top, student sees rotated version on bottom
+      {/* Centered Flip Button */}
+      <FlipButton onFlipRoles={flipRoles} />
+
+      {/* Footer - Hidden in fullscreen */}
+      {!drawingState.isFullscreen && (
+        <footer className="bg-white border-t border-gray-200 px-6 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <div className="flex items-center gap-4">
+              <span>Current Tool: <span className="font-medium capitalize">{drawingState.currentTool}</span></span>
+              <span>Color: <span className="font-medium">{drawingState.currentColor}</span></span>
+              <span>Width: <span className="font-medium">{drawingState.currentWidth}px</span></span>
             </div>
-            <div className="text-sm text-gray-500">Works with touch, stylus, or mouse</div>
+            <div className="flex items-center gap-4">
+              <span>Grid: <span className="font-medium">{drawingState.showGrid ? 'On' : 'Off'}</span></span>
+              <span>Tutor Position: <span className="font-medium">{drawingState.tutorAtBottom ? 'Bottom' : 'Top'}</span></span>
+            </div>
           </div>
-        </div>
+        </footer>
       )}
     </div>
   );

@@ -2,7 +2,14 @@
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
-    extend: {},
+    extend: {
+      rotate: {
+        '180': '180deg',
+      },
+      transitionDuration: {
+        '600': '600ms',
+      },
+    },
   },
   plugins: [],
 };
