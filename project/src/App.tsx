@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useState } from 'react';
 import { Canvas, CanvasRef } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { RoleIndicator } from './components/RoleIndicator';
@@ -9,6 +10,8 @@ import { useCanvasInteractions } from './hooks/useCanvasInteractions';
 import { exportCanvas } from './utils/export';
 
 function App() {
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
+  
   const {
     drawingState,
     startDrawing,
@@ -19,6 +22,7 @@ function App() {
     setWidth,
     toggleGrid,
     undo,
+    redo,
     clearCanvas,
     flipRoles,
     handleImageUpload,
@@ -89,7 +93,7 @@ function App() {
           <Canvas
             ref={studentCanvasRef}
             drawingState={drawingState}
-            isRotated={drawingState.tutorAtBottom}
+            isRotated={true}
             disabled={drawingState.tutorAtBottom}
             transform={transform}
             onTransformChange={setTransform}
@@ -99,18 +103,21 @@ function App() {
           />
           
           <RoleIndicator 
-            role={drawingState.tutorAtBottom ? 'student' : 'tutor'}
+            role={drawingState.tutorAtBottom ? 'viewer' : 'editor'}
             tutorAtBottom={drawingState.tutorAtBottom}
           />
           
           {!drawingState.tutorAtBottom && (
             <Toolbar
               drawingState={drawingState}
+              isCollapsed={isToolbarCollapsed}
+              onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
               onToolChange={setTool}
               onColorChange={setColor}
               onWidthChange={setWidth}
               onToggleGrid={toggleGrid}
               onUndo={undo}
+              onRedo={redo}
               onClear={clearCanvas}
               onFlipRoles={flipRoles}
               onExport={handleExport}
@@ -126,7 +133,7 @@ function App() {
           <Canvas
             ref={tutorCanvasRef}
             drawingState={drawingState}
-            isRotated={!drawingState.tutorAtBottom}
+            isRotated={false}
             disabled={!drawingState.tutorAtBottom}
             transform={transform}
             onTransformChange={setTransform}
@@ -136,18 +143,21 @@ function App() {
           />
           
           <RoleIndicator 
-            role={drawingState.tutorAtBottom ? 'tutor' : 'student'}
+            role={drawingState.tutorAtBottom ? 'editor' : 'viewer'}
             tutorAtBottom={drawingState.tutorAtBottom}
           />
           
           {drawingState.tutorAtBottom && (
             <Toolbar
               drawingState={drawingState}
+              isCollapsed={isToolbarCollapsed}
+              onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
               onToolChange={setTool}
               onColorChange={setColor}
               onWidthChange={setWidth}
               onToggleGrid={toggleGrid}
               onUndo={undo}
+              onRedo={redo}
               onClear={clearCanvas}
               onFlipRoles={flipRoles}
               onExport={handleExport}
@@ -173,7 +183,7 @@ function App() {
             </div>
             <div className="flex items-center gap-4">
               <span>Grid: <span className="font-medium">{drawingState.showGrid ? 'On' : 'Off'}</span></span>
-              <span>Tutor Position: <span className="font-medium">{drawingState.tutorAtBottom ? 'Bottom' : 'Top'}</span></span>
+              <span>Editor Position: <span className="font-medium">{drawingState.tutorAtBottom ? 'Bottom' : 'Top'}</span></span>
             </div>
           </div>
         </footer>

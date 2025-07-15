@@ -4,6 +4,8 @@ import { DrawingState, DrawingElement, DrawingStroke, DrawingShape, DrawingText,
 export const useDrawing = () => {
   const [drawingState, setDrawingState] = useState<DrawingState>({
     elements: [],
+    undoStack: [],
+    redoStack: [],
     currentTool: 'pen',
     currentColor: '#2563eb',
     currentWidth: 3,
@@ -39,6 +41,13 @@ export const useDrawing = () => {
     }));
   }, []);
 
+  const saveToUndoStack = useCallback(() => {
+    setDrawingState(prev => ({
+      ...prev,
+      undoStack: [...prev.undoStack, prev.elements],
+      redoStack: [],
+    }));
+  }, []);
   const eraseAtPoint = useCallback((point: Point, eraseRadius: number = 20) => {
     setDrawingState(prev => ({
       ...prev,
@@ -71,6 +80,9 @@ export const useDrawing = () => {
 
   const startDrawing = useCallback((point: Point) => {
     isDrawingRef.current = true;
+    
+    // Save state before any drawing operation
+    saveToUndoStack();
 
     if (drawingState.currentTool === 'pen') {
       const newStroke: DrawingStroke = {
@@ -98,7 +110,7 @@ export const useDrawing = () => {
       currentShapeRef.current = newShape;
       addElement(newShape);
     }
-  }, [drawingState.currentTool, drawingState.currentColor, drawingState.currentWidth, addElement, eraseAtPoint]);
+  }, [drawingState.currentTool, drawingState.currentColor, drawingState.currentWidth, addElement, eraseAtPoint, saveToUndoStack]);
 
   const continueDrawing = useCallback((point: Point) => {
     if (!isDrawingRef.current) return;
@@ -132,12 +144,14 @@ export const useDrawing = () => {
   }, [updateElement]);
 
   const addText = useCallback((text: DrawingText) => {
+    saveToUndoStack();
     addElement(text);
-  }, [addElement]);
+  }, [addElement, saveToUndoStack]);
 
   const addImage = useCallback((image: DrawingImage) => {
+    saveToUndoStack();
     addElement(image);
-  }, [addElement]);
+  }, [addElement, saveToUndoStack]);
 
   const handleImageUpload = useCallback(async (file: File) => {
     try {
@@ -174,14 +188,45 @@ export const useDrawing = () => {
   }, [addImage]);
 
   const clearCanvas = useCallback(() => {
-    setDrawingState(prev => ({ ...prev, elements: [] }));
-  }, []);
+    saveToUndoStack();
+    setDrawingState(prev => ({ 
+      ...prev, 
+      elements: []
+    }));
+  }, [saveToUndoStack]);
 
   const undo = useCallback(() => {
-    setDrawingState(prev => ({
-      ...prev,
-      elements: prev.elements.slice(0, -1),
-    }));
+    setDrawingState(prev => {
+      if (prev.undoStack.length === 0) return prev;
+      
+      const previousState = prev.undoStack[prev.undoStack.length - 1];
+      const newUndoStack = prev.undoStack.slice(0, -1);
+      const newRedoStack = [...prev.redoStack, prev.elements];
+      
+      return {
+        ...prev,
+        elements: previousState,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+      };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setDrawingState(prev => {
+      if (prev.redoStack.length === 0) return prev;
+      
+      const nextState = prev.redoStack[prev.redoStack.length - 1];
+      const newRedoStack = prev.redoStack.slice(0, -1);
+      const newUndoStack = [...prev.undoStack, prev.elements];
+      
+      return {
+        ...prev,
+        elements: nextState,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+      };
+    });
   }, []);
 
   const setTool = useCallback((tool: DrawingState['currentTool']) => {
@@ -218,6 +263,7 @@ export const useDrawing = () => {
     handleImageUpload,
     clearCanvas,
     undo,
+    redo,
     setTool,
     setColor,
     setWidth,

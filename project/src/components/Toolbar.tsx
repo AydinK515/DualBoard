@@ -9,6 +9,7 @@ import {
   Type, 
   Grid3X3, 
   Undo, 
+  Redo,
   Trash2,
   RotateCcw,
   Download,
@@ -16,17 +17,21 @@ import {
   Maximize,
   Minimize,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
 } from 'lucide-react';
+import { HexColorPicker } from 'react-colorful';
 import { DrawingState } from '../types/drawing';
 
 interface ToolbarProps {
   drawingState: DrawingState;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
   onToolChange: (tool: DrawingState['currentTool']) => void;
   onColorChange: (color: string) => void;
   onWidthChange: (width: number) => void;
   onToggleGrid: () => void;
   onUndo: () => void;
+  onRedo: () => void;
   onClear: () => void;
   onFlipRoles: () => void;
   onExport: () => void;
@@ -36,32 +41,28 @@ interface ToolbarProps {
 }
 
 const colors = [
-  '#2563eb', // blue
-  '#dc2626', // red
-  '#16a34a', // green
-  '#ea580c', // orange
-  '#9333ea', // purple
-  '#0891b2', // cyan
   '#000000', // black
-  '#6b7280', // gray
+  '#dc2626', // red
+  '#2563eb', // blue
 ];
-
-const widths = [1, 2, 3, 5, 8, 12];
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   drawingState,
+  isCollapsed,
+  onToggleCollapse,
   onToolChange,
   onColorChange,
   onWidthChange,
   onToggleGrid,
   onUndo,
+  onRedo,
   onClear,
   onExport,
   onImageUpload,
   onToggleFullscreen,
   isRotated = false,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const tools = [
     { id: 'pen', icon: Pen, label: 'Pen' },
@@ -70,7 +71,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'ellipse', icon: Circle, label: 'Ellipse' },
     { id: 'line', icon: Minus, label: 'Line' },
     { id: 'arrow', icon: ArrowRight, label: 'Arrow' },
-    { id: 'text', icon: Type, label: 'Text' },
   ] as const;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,10 +80,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     }
     // Reset input value to allow uploading the same file again
     e.target.value = '';
-  };
-
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
   };
 
   // Determine positioning based on tutor position and collapse state
@@ -145,7 +141,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     <>
       {/* Toggle Button */}
       <button
-        onClick={toggleCollapse}
+        onClick={onToggleCollapse}
         className={`${getToggleButtonPosition()} bg-white/95 backdrop-blur-sm border border-gray-200 rounded-full shadow-lg p-2 hover:bg-gray-50 transition-all duration-300 ${!drawingState.tutorAtBottom ? 'rotate-180' : ''}`}
         title={isCollapsed ? "Show Toolbar" : "Hide Toolbar"}
       >
@@ -159,7 +155,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             {/* Tools - arranged in 2 columns */}
             <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
               <div className="grid grid-cols-2 gap-1 w-full">
-                {tools.slice(0, 6).map(({ id, icon: Icon, label }) => (
+                {tools.map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
                     onClick={() => onToolChange(id as DrawingState['currentTool'])}
@@ -174,26 +170,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                   </button>
                 ))}
               </div>
-              {/* Text tool on its own row */}
-              {tools.slice(6).map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  onClick={() => onToolChange(id as DrawingState['currentTool'])}
-                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
-                    drawingState.currentTool === id
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title={label}
-                >
-                  <Icon size={16} />
-                </button>
-              ))}
             </div>
 
             {/* Colors - 2x4 grid */}
             <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="grid grid-cols-2 gap-1 w-full">
+              <div className="grid grid-cols-2 gap-1 w-full relative">
                 {colors.map((color) => (
                   <button
                     key={color}
@@ -207,34 +188,66 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     title={`Color: ${color}`}
                   />
                 ))}
+                
+                {/* Color Picker Button */}
+                <div>
+                  <button
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className={`w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center ${
+                      showColorPicker
+                        ? 'border-gray-800 scale-110'
+                        : 'border-gray-300 hover:border-gray-500'
+                    }`}
+                    style={{ 
+                      background: `conic-gradient(red, yellow, lime, aqua, blue, magenta, red)`,
+                    }}
+                    title="Custom Color Picker"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Width - 2x3 grid */}
+            {/* Width - Slider */}
             <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="grid grid-cols-2 gap-1 w-full">
-                {widths.map((width) => (
-                  <button
-                    key={width}
-                    onClick={() => onWidthChange(width)}
-                    className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
-                      drawingState.currentWidth === width
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    title={`Width: ${width}px`}
-                  >
-                    <div
-                      className="rounded-full bg-current"
-                      style={{ width: `${Math.max(width, 4)}px`, height: `${Math.max(width, 4)}px` }}
-                    />
-                  </button>
-                ))}
+              <div className="w-full px-1">
+                <div className="text-xs text-gray-500 text-center mb-1">
+                  {drawingState.currentWidth}px
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={drawingState.currentWidth}
+                  onChange={(e) => onWidthChange(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  title={`Width: ${drawingState.currentWidth}px`}
+                />
+                <style jsx>{`
+                  .slider::-webkit-slider-thumb {
+                    appearance: none;
+                    height: 16px;
+                    width: 16px;
+                    border-radius: 50%;
+                    background: #3b82f6;
+                    cursor: pointer;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                  }
+                  .slider::-moz-range-thumb {
+                    height: 16px;
+                    width: 16px;
+                    border-radius: 50%;
+                    background: #3b82f6;
+                    cursor: pointer;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                  }
+                `}</style>
               </div>
             </div>
 
             {/* Actions - 2 columns for most, single column for some */}
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
               <div className="grid grid-cols-2 gap-1 w-full">
                 <button
                   onClick={onToggleGrid}
@@ -249,21 +262,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 </button>
 
                 <button
-                  onClick={onUndo}
-                  className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors w-9 h-9 flex items-center justify-center"
-                  title="Undo"
+                  onClick={onToggleFullscreen}
+                  className="p-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors w-9 h-9 flex items-center justify-center"
+                  title={drawingState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
-                  <Undo size={16} />
+                  {drawingState.isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-
-                <button
-                  onClick={onClear}
-                  className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors w-9 h-9 flex items-center justify-center"
-                  title="Clear Canvas"
-                >
-                  <Trash2 size={16} />
-                </button>
-
+              </div>
+              
+              <div className="grid grid-cols-2 gap-1 w-full">
                 <label className="p-2 rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors cursor-pointer w-9 h-9 flex items-center justify-center" title="Upload Image">
                   <Upload size={16} />
                   <input
@@ -281,19 +288,69 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 >
                   <Download size={16} />
                 </button>
+              </div>
+            </div>
+
+            {/* Undo/Redo/Clear Section */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="grid grid-cols-2 gap-1 w-full">
+                <button
+                  onClick={onUndo}
+                  disabled={drawingState.undoStack.length === 0}
+                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
+                    drawingState.undoStack.length === 0
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Undo"
+                >
+                  <Undo size={16} />
+                </button>
 
                 <button
-                  onClick={onToggleFullscreen}
-                  className="p-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors w-9 h-9 flex items-center justify-center"
-                  title={drawingState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                  onClick={onRedo}
+                  disabled={drawingState.redoStack.length === 0}
+                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
+                    drawingState.redoStack.length === 0
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  title="Redo"
                 >
-                  {drawingState.isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                  <Redo size={16} />
                 </button>
               </div>
+
+              <button
+                onClick={onClear}
+                className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors w-9 h-9 flex items-center justify-center"
+                title="Clear Canvas"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Color Picker - Positioned completely outside toolbar */}
+      {showColorPicker && (
+        <div className={`fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 ${
+          drawingState.tutorAtBottom 
+            ? 'right-[140px] top-1/2 -translate-y-1/2' // To the left of the entire toolbar when toolbar is on right
+            : 'left-[140px] top-1/2 -translate-y-1/2 rotate-180' // To the right of the entire toolbar when toolbar is on left
+        }`}>
+          <HexColorPicker 
+            color={drawingState.currentColor} 
+            onChange={onColorChange}
+          />
+          <div className={`mt-2 text-xs text-center text-gray-500 ${
+            !drawingState.tutorAtBottom ? 'rotate-180' : ''
+          }`}>
+            {drawingState.currentColor}
+          </div>
+        </div>
+      )}
     </>
   );
 };

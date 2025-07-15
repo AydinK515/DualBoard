@@ -45,6 +45,8 @@ export type DrawingTool = 'pen' | 'eraser' | 'rectangle' | 'ellipse' | 'line' | 
 
 export interface DrawingState {
   elements: DrawingElement[];
+  undoStack: DrawingElement[][];
+  redoStack: DrawingElement[][];
   currentTool: DrawingTool;
   currentColor: string;
   currentWidth: number;

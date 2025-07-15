@@ -46,10 +46,20 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
 
     const rect = canvas.getBoundingClientRect();
     
-    // Convert to canvas coordinates - no rotation transformation needed
-    // The CSS transform handles the visual rotation, coordinates stay consistent
-    const x = (clientX - rect.left - transform.x) / transform.scale;
-    const y = (clientY - rect.top - transform.y) / transform.scale;
+    // Get raw canvas coordinates relative to the canvas element
+    let canvasX = clientX - rect.left;
+    let canvasY = clientY - rect.top;
+    
+    // If this canvas is rotated, we need to transform the screen coordinates first
+    // before applying the pan/zoom transforms
+    if (isRotated) {
+      canvasX = rect.width - canvasX;
+      canvasY = rect.height - canvasY;
+    }
+    
+    // Now apply the inverse pan/zoom transforms to get the final drawing coordinates
+    const x = (canvasX - transform.x) / transform.scale;
+    const y = (canvasY - transform.y) / transform.scale;
 
     return { x, y };
   }, [isRotated, transform]);
@@ -201,10 +211,13 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Apply only pan and zoom transforms - NO rotation
+    // Apply pan and zoom transforms
     ctx.save();
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.scale, transform.scale);
+
+    // If the canvas is CSS rotated, apply inverse rotation to drawings
+    // so they appear in the same orientation regardless of the flip
 
     // Draw grid first (behind everything)
     drawGrid(ctx);
@@ -256,8 +269,14 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
   const updatePan = useCallback((clientX: number, clientY: number) => {
     if (!isPanning.current || !lastPanPoint.current) return;
 
-    const deltaX = clientX - lastPanPoint.current.x;
-    const deltaY = clientY - lastPanPoint.current.y;
+    let deltaX = clientX - lastPanPoint.current.x;
+    let deltaY = clientY - lastPanPoint.current.y;
+    
+    // If canvas is rotated 180 degrees, invert the pan deltas
+    if (isRotated) {
+      deltaX = -deltaX;
+      deltaY = -deltaY;
+    }
 
     onTransformChange({
       ...transform,
@@ -278,8 +297,14 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const canvasCenterX = centerX - rect.left;
-    const canvasCenterY = centerY - rect.top;
+    let canvasCenterX = centerX - rect.left;
+    let canvasCenterY = centerY - rect.top;
+    
+    // If canvas is rotated 180 degrees, adjust the zoom center coordinates
+    if (isRotated) {
+      canvasCenterX = rect.width - canvasCenterX;
+      canvasCenterY = rect.height - canvasCenterY;
+    }
 
     const zoomFactor = delta > 0 ? 1.1 : 0.9;
     const newScale = Math.max(0.1, Math.min(5, transform.scale * zoomFactor));
@@ -294,7 +319,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
       y: newY,
       scale: newScale,
     });
-  }, [transform, onTransformChange]);
+  }, [transform, onTransformChange, isRotated]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (disabled) return;
@@ -408,8 +433,14 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
         const canvas = canvasRef.current;
         if (canvas) {
           const rect = canvas.getBoundingClientRect();
-          const canvasCenterX = centerX - rect.left;
-          const canvasCenterY = centerY - rect.top;
+          let canvasCenterX = centerX - rect.left;
+          let canvasCenterY = centerY - rect.top;
+          
+          // If canvas is rotated 180 degrees, adjust the zoom center coordinates
+          if (isRotated) {
+            canvasCenterX = rect.width - canvasCenterX;
+            canvasCenterY = rect.height - canvasCenterY;
+          }
           
           // Apply zoom with the ratio change
           const newScale = Math.max(0.1, Math.min(5, transform.scale * zoomChange));
@@ -429,12 +460,20 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
       const panDeltaX = centerX - lastTouchCenter.current.x;
       const panDeltaY = centerY - lastTouchCenter.current.y;
       
+      // Adjust pan deltas for rotated canvas
+      let adjustedPanDeltaX = panDeltaX;
+      let adjustedPanDeltaY = panDeltaY;
+      if (isRotated) {
+        adjustedPanDeltaX = -panDeltaX;
+        adjustedPanDeltaY = -panDeltaY;
+      }
+      
       // Only pan if zoom change is minimal and there's meaningful movement
       if (Math.abs(zoomChange - 1) < 0.05 && (Math.abs(panDeltaX) > 2 || Math.abs(panDeltaY) > 2)) {
         onTransformChange({
           ...transform,
-          x: transform.x + panDeltaX,
-          y: transform.y + panDeltaY,
+          x: transform.x + adjustedPanDeltaX,
+          y: transform.y + adjustedPanDeltaY,
         });
       }
       
@@ -447,8 +486,7 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
         onContinueDrawing(point);
       }
     }
-  }
-  )
+  }, [disabled, onContinueDrawing, transformPoint, transform, onTransformChange, isRotated]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (disabled) return;
