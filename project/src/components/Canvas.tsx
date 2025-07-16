@@ -165,17 +165,18 @@ export const Canvas = forwardRef<CanvasRef, CanvasProps>(({
 
         // Draw arrowhead
         const angle = Math.atan2(height, width);
-        const arrowLength = 15;
+        const arrowLength = Math.max(15, shape.width * 3); // Scale with line width
+        const arrowAngle = Math.PI / 6; // 30 degrees
         ctx.beginPath();
         ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
         ctx.lineTo(
-          shape.endPoint.x - arrowLength * Math.cos(angle - Math.PI / 6),
-          shape.endPoint.y - arrowLength * Math.sin(angle - Math.PI / 6)
+          shape.endPoint.x - arrowLength * Math.cos(angle - arrowAngle),
+          shape.endPoint.y - arrowLength * Math.sin(angle - arrowAngle)
         );
         ctx.moveTo(shape.endPoint.x, shape.endPoint.y);
         ctx.lineTo(
-          shape.endPoint.x - arrowLength * Math.cos(angle + Math.PI / 6),
-          shape.endPoint.y - arrowLength * Math.sin(angle + Math.PI / 6)
+          shape.endPoint.x - arrowLength * Math.cos(angle + arrowAngle),
+          shape.endPoint.y - arrowLength * Math.sin(angle + arrowAngle)
         );
         ctx.stroke();
         break;

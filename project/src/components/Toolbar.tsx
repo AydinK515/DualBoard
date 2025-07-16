@@ -361,7 +361,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       {showColorPicker && (
         <div className={`fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 ${
           drawingState.tutorAtBottom 
-            ? 'right-[140px] top-1/2 -translate-y-full translate-y-[-30px]' // To the left of toolbar, 30px higher
+            ? 'right-[140px] top-1/2 -translate-y-full translate-y-[-255px]' // To the left of toolbar, 255px higher
             : 'left-[140px] top-1/2 translate-y-[30px]' // To the right of toolbar, 30px lower
         }`}
         ref={colorPickerRef}>

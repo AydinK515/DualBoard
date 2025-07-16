@@ -7,7 +7,7 @@ export const useDrawing = () => {
     undoStack: [],
     redoStack: [],
     currentTool: 'pen',
-    currentColor: '#2563eb',
+    currentColor: '#000000',
     currentWidth: 3,
     showGrid: true,
     tutorAtBottom: true,
@@ -60,13 +60,71 @@ export const useDrawing = () => {
           });
         }
         if ('startPoint' in element && 'endPoint' in element) {
-          // For shapes, check if point is within bounding box
-          const minX = Math.min(element.startPoint.x, element.endPoint.x);
-          const maxX = Math.max(element.startPoint.x, element.endPoint.x);
-          const minY = Math.min(element.startPoint.y, element.endPoint.y);
-          const maxY = Math.max(element.startPoint.y, element.endPoint.y);
-          return !(point.x >= minX - eraseRadius && point.x <= maxX + eraseRadius &&
-                   point.y >= minY - eraseRadius && point.y <= maxY + eraseRadius);
+          // For shapes, use proper geometric collision detection
+          const shape = element as DrawingShape;
+          
+          if (shape.type === 'rectangle') {
+            // Check if point is within rectangle bounds + eraser radius
+            const minX = Math.min(shape.startPoint.x, shape.endPoint.x);
+            const maxX = Math.max(shape.startPoint.x, shape.endPoint.x);
+            const minY = Math.min(shape.startPoint.y, shape.endPoint.y);
+            const maxY = Math.max(shape.startPoint.y, shape.endPoint.y);
+            return !(point.x >= minX - eraseRadius && point.x <= maxX + eraseRadius &&
+                     point.y >= minY - eraseRadius && point.y <= maxY + eraseRadius);
+          }
+          
+          if (shape.type === 'ellipse') {
+            // Check if point is within ellipse + eraser radius
+            const centerX = (shape.startPoint.x + shape.endPoint.x) / 2;
+            const centerY = (shape.startPoint.y + shape.endPoint.y) / 2;
+            const radiusX = Math.abs(shape.endPoint.x - shape.startPoint.x) / 2;
+            const radiusY = Math.abs(shape.endPoint.y - shape.startPoint.y) / 2;
+            
+            // Expand the ellipse by the eraser radius
+            const expandedRadiusX = radiusX + eraseRadius;
+            const expandedRadiusY = radiusY + eraseRadius;
+            
+            // Check if point is within the expanded ellipse
+            const normalizedX = (point.x - centerX) / expandedRadiusX;
+            const normalizedY = (point.y - centerY) / expandedRadiusY;
+            const distanceSquared = normalizedX * normalizedX + normalizedY * normalizedY;
+            
+            return distanceSquared > 1; // Return true to keep (not erase), false to erase
+          }
+          
+          if (shape.type === 'line' || shape.type === 'arrow') {
+            // Check distance from point to line segment
+            const lineLength = Math.sqrt(
+              Math.pow(shape.endPoint.x - shape.startPoint.x, 2) + 
+              Math.pow(shape.endPoint.y - shape.startPoint.y, 2)
+            );
+            
+            if (lineLength === 0) {
+              // Line is actually a point
+              const distance = Math.sqrt(
+                Math.pow(point.x - shape.startPoint.x, 2) + 
+                Math.pow(point.y - shape.startPoint.y, 2)
+              );
+              return distance > eraseRadius;
+            }
+            
+            // Calculate distance from point to line segment
+            const t = Math.max(0, Math.min(1, 
+              ((point.x - shape.startPoint.x) * (shape.endPoint.x - shape.startPoint.x) + 
+               (point.y - shape.startPoint.y) * (shape.endPoint.y - shape.startPoint.y)) / 
+              (lineLength * lineLength)
+            ));
+            
+            const projectionX = shape.startPoint.x + t * (shape.endPoint.x - shape.startPoint.x);
+            const projectionY = shape.startPoint.y + t * (shape.endPoint.y - shape.startPoint.y);
+            
+            const distance = Math.sqrt(
+              Math.pow(point.x - projectionX, 2) + 
+              Math.pow(point.y - projectionY, 2)
+            );
+            
+            return distance > eraseRadius;
+          }
         }
         if ('position' in element) {
           // For text and images, check distance from position
