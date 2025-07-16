@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Pen, 
   Eraser, 
@@ -63,6 +63,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isRotated = false,
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Handle click outside to close color picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showColorPicker && 
+          colorPickerRef.current && 
+          colorButtonRef.current &&
+          !colorPickerRef.current.contains(event.target as Node) &&
+          !colorButtonRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorPicker]);
 
   const tools = [
     { id: 'pen', icon: Pen, label: 'Pen' },
@@ -192,6 +215,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 {/* Color Picker Button */}
                 <div>
                   <button
+                    ref={colorButtonRef}
                     onClick={() => setShowColorPicker(!showColorPicker)}
                     className={`w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center ${
                       showColorPicker
@@ -337,18 +361,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       {showColorPicker && (
         <div className={`fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 ${
           drawingState.tutorAtBottom 
-            ? 'right-[140px] top-1/2 -translate-y-1/2' // To the left of the entire toolbar when toolbar is on right
-            : 'left-[140px] top-1/2 -translate-y-1/2 rotate-180' // To the right of the entire toolbar when toolbar is on left
-        }`}>
+            ? 'right-[140px] top-1/2 -translate-y-full translate-y-[-30px]' // To the left of toolbar, 30px higher
+            : 'left-[140px] top-1/2 translate-y-[30px]' // To the right of toolbar, 30px lower
+        }`}
+        ref={colorPickerRef}>
           <HexColorPicker 
             color={drawingState.currentColor} 
             onChange={onColorChange}
           />
-          <div className={`mt-2 text-xs text-center text-gray-500 ${
-            !drawingState.tutorAtBottom ? 'rotate-180' : ''
-          }`}>
-            {drawingState.currentColor}
-          </div>
         </div>
       )}
     </>
