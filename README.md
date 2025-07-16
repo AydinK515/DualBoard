@@ -1,4 +1,4 @@
-# MirrorBoard - Split-Screen Whiteboard for Face-to-Face Tutoring
+# DualBoard - Split-Screen Whiteboard for Face-to-Face Tutoring
 
 ### Purpose & Goal:
 MirrorBoard solves a common problem in face-to-face tutoring and teaching scenarios. When an instructor sits across from a student and draws on a traditional whiteboard or tablet, the student sees everything upside-down and backwards, making it difficult to follow along.
@@ -11,7 +11,6 @@ This means when the tutor writes "HELLO" normally, the student sees "HELLO" righ
 ### Key Features:
 
 - Real-time mirroring with zero delay
-- Adjustable canvas heights for both tutor and student views
 - Full drawing toolkit (pen, eraser, brush sizes, undo/redo)
 - Touch, stylus, and mouse support
 - Export drawings as PNG files
