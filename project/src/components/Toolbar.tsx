@@ -68,7 +68,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   // Handle click outside to close color picker
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (showColorPicker && 
           colorPickerRef.current && 
           colorButtonRef.current &&
@@ -80,10 +80,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
     if (showColorPicker) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [showColorPicker]);
 
