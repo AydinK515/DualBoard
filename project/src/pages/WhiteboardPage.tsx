@@ -61,7 +61,7 @@ export const WhiteboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <img 
-                src="/Dualboard logo.jpg" 
+                src="/public/Dualboard logo.jpg" 
                 alt="DualBoard Logo" 
                 className="w-8 h-8 rounded-lg object-cover"
               />

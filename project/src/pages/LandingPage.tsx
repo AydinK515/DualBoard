@@ -11,7 +11,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img 
-                src="/Dualboard logo.jpg" 
+                src="/public/Dualboard logo.jpg" 
                 alt="DualBoard Logo" 
                 className="w-10 h-10 rounded-lg object-cover shadow-sm"
               />
@@ -53,12 +53,15 @@ export const LandingPage: React.FC = () => {
         <div className="mb-16">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-w-5xl mx-auto">
             <div className="bg-gradient-to-r from-blue-500 to-green-500 h-2"></div>
-            <div className="p-4">
-              <img 
-                src="/Dualboard demonstration image.jpg" 
-                alt="DualBoard Interactive Dual-Canvas Interface Demonstration" 
-                className="w-full h-auto rounded-xl shadow-sm"
-              />
+            <div className="p-8">
+              <div className="bg-gray-100 rounded-xl h-96 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <Users className="text-white" size={32} />
+                  </div>
+                  <p className="text-gray-600 text-lg">Interactive Dual-Canvas Interface</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -220,7 +223,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center gap-3">
               <img 
-                src="/Dualboard logo.jpg" 
+                src="/public/Dualboard logo.jpg" 
                 alt="DualBoard Logo" 
                 className="w-8 h-8 rounded-lg object-cover"
               />
