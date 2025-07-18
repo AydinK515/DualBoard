@@ -1,4 +1,4 @@
-export const exportCanvas = (canvasElement: HTMLCanvasElement, filename: string = 'mirrorboard-export') => {
+export const exportCanvas = (canvasElement: HTMLCanvasElement, filename: string = 'dualboard-export') => {
   try {
     // Create a new canvas for export with white background
     const exportCanvas = document.createElement('canvas');

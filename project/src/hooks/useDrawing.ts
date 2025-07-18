@@ -211,40 +211,6 @@ export const useDrawing = () => {
     addElement(image);
   }, [addElement, saveToUndoStack]);
 
-  const handleImageUpload = useCallback(async (file: File) => {
-    try {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      
-      return new Promise<void>((resolve, reject) => {
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          
-          const newImage: DrawingImage = {
-            id: `image-${Date.now()}-${Math.random()}`,
-            src: img.src,
-            position: { x: 50, y: 50 },
-            width: Math.min(img.width, 400),
-            height: Math.min(img.height, 300),
-          };
-          
-          addImage(newImage);
-          resolve();
-        };
-        
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('Failed to load image'));
-        };
-        
-        img.src = url;
-      });
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      throw error;
-    }
-  }, [addImage]);
-
   const clearCanvas = useCallback(() => {
     saveToUndoStack();
     setDrawingState(prev => ({ 
@@ -318,7 +284,6 @@ export const useDrawing = () => {
     endDrawing,
     addText,
     addImage,
-    handleImageUpload,
     clearCanvas,
     undo,
     redo,

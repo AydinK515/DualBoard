@@ -6,14 +6,10 @@ import {
   Circle, 
   Minus, 
   ArrowRight, 
-  Type, 
-  Grid3X3, 
   Undo, 
   Redo,
   Trash2,
-  RotateCcw,
   Download,
-  Upload,
   Maximize,
   Minimize,
   ChevronRight,
@@ -29,13 +25,10 @@ interface ToolbarProps {
   onToolChange: (tool: DrawingState['currentTool']) => void;
   onColorChange: (color: string) => void;
   onWidthChange: (width: number) => void;
-  onToggleGrid: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
-  onFlipRoles: () => void;
   onExport: () => void;
-  onImageUpload: (file: File) => void;
   onToggleFullscreen: () => void;
   isRotated?: boolean;
 }
@@ -53,12 +46,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onToolChange,
   onColorChange,
   onWidthChange,
-  onToggleGrid,
   onUndo,
   onRedo,
   onClear,
   onExport,
-  onImageUpload,
   onToggleFullscreen,
   isRotated = false,
 }) => {
@@ -97,15 +88,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'line', icon: Minus, label: 'Line' },
     { id: 'arrow', icon: ArrowRight, label: 'Arrow' },
   ] as const;
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImageUpload(file);
-    }
-    // Reset input value to allow uploading the same file again
-    e.target.value = '';
-  };
 
   // Determine positioning based on tutor position and collapse state
   const getToolbarPosition = () => {
@@ -276,36 +258,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
               <div className="grid grid-cols-2 gap-1 w-full">
                 <button
-                  onClick={onToggleGrid}
-                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
-                    drawingState.showGrid
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  title="Toggle Grid"
-                >
-                  <Grid3X3 size={16} />
-                </button>
-
-                <button
                   onClick={onToggleFullscreen}
                   className="p-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors w-9 h-9 flex items-center justify-center"
                   title={drawingState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
                   {drawingState.isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-1 w-full">
-                <label className="p-2 rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors cursor-pointer w-9 h-9 flex items-center justify-center" title="Upload Image">
-                  <Upload size={16} />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </label>
 
                 <button
                   onClick={onExport}
