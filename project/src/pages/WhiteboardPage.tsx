@@ -57,23 +57,21 @@ export const WhiteboardPage: React.FC = () => {
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Header - Hidden in fullscreen */}
       {!drawingState.isFullscreen && (
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0 h-[73px]">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <img 
                 src="/public/Dualboard logo.jpg" 
                 alt="DualBoard Logo" 
-                className="w-8 h-8 rounded-lg object-cover"
+                className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg object-cover flex-shrink-0"
               />
-              <h1 className="text-xl font-semibold text-gray-900">DualBoard</h1>
-              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                Face-to-Face Collaboration
-              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">DualBoard</h1>
+                <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 py-0.5 sm:py-1 rounded whitespace-nowrap leading-tight">
+                  Face-to-Face Collaboration
+                </span>
+              </div>
             </Link>
-            
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Elements:</span> {drawingState.elements.length}
-            </div>
           </div>
         </header>
       )}
@@ -160,16 +158,16 @@ export const WhiteboardPage: React.FC = () => {
 
       {/* Footer - Hidden in fullscreen */}
       {!drawingState.isFullscreen && (
-        <footer className="bg-white border-t border-gray-200 px-6 py-3 flex-shrink-0">
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <div className="flex items-center gap-4">
-              <span>Current Tool: <span className="font-medium capitalize">{drawingState.currentTool}</span></span>
-              <span>Color: <span className="font-medium">{drawingState.currentColor}</span></span>
-              <span>Width: <span className="font-medium">{drawingState.currentWidth}px</span></span>
+        <footer className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0 h-[49px]">
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
+            <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
+              <span className="whitespace-nowrap">Tool: <span className="font-medium capitalize">{drawingState.currentTool}</span></span>
+              <span className="hidden sm:inline whitespace-nowrap">Color: <span className="font-medium">{drawingState.currentColor}</span></span>
+              <span className="hidden md:inline whitespace-nowrap">Width: <span className="font-medium">{drawingState.currentWidth}px</span></span>
             </div>
-            <div className="flex items-center gap-4">
-              <span>Grid: <span className="font-medium">{drawingState.showGrid ? 'On' : 'Off'}</span></span>
-              <span>Editor Position: <span className="font-medium">{drawingState.tutorAtBottom ? 'Bottom' : 'Top'}</span></span>
+            <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
+              <span className="hidden sm:inline whitespace-nowrap">Grid: <span className="font-medium">{drawingState.showGrid ? 'On' : 'Off'}</span></span>
+              <span className="whitespace-nowrap">Editor: <span className="font-medium">{drawingState.tutorAtBottom ? 'Bottom' : 'Top'}</span></span>
             </div>
           </div>
         </footer>
