@@ -54,8 +54,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   isRotated = false,
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [scaleFactor, setScaleFactor] = useState(1);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside to close color picker
   useEffect(() => {
@@ -80,6 +82,52 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     };
   }, [showColorPicker]);
 
+  // Calculate scale factor based on available space
+  useEffect(() => {
+    if (isCollapsed || !toolbarRef.current) {
+      setScaleFactor(1);
+      return;
+    }
+
+    const updateScale = () => {
+      const toolbar = toolbarRef.current;
+      if (!toolbar) return;
+
+      // Get the canvas container (parent of toolbar)
+      const canvasContainer = toolbar.closest('[style*="height"]') as HTMLElement;
+      if (!canvasContainer) return;
+
+      const containerHeight = canvasContainer.clientHeight;
+      const toolbarHeight = toolbar.scrollHeight; // Natural height without scaling
+      
+      // Add some padding (40px top + 40px bottom = 80px total)
+      const availableHeight = containerHeight - 80;
+      
+      if (toolbarHeight > availableHeight) {
+        // Calculate scale factor needed to fit
+        const newScale = Math.max(0.6, availableHeight / toolbarHeight); // Minimum scale of 0.6
+        setScaleFactor(newScale);
+      } else {
+        setScaleFactor(1);
+      }
+    };
+
+    // Update scale on mount and resize
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    
+    // Use ResizeObserver to watch for container size changes
+    const resizeObserver = new ResizeObserver(updateScale);
+    const canvasContainer = toolbarRef.current.closest('[style*="height"]') as HTMLElement;
+    if (canvasContainer) {
+      resizeObserver.observe(canvasContainer);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      resizeObserver.disconnect();
+    };
+  }, [isCollapsed]);
   const tools = [
     { id: 'pen', icon: Pen, label: 'Pen' },
     { id: 'eraser', icon: Eraser, label: 'Eraser' },
@@ -91,7 +139,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   // Determine positioning based on tutor position and collapse state
   const getToolbarPosition = () => {
-    const baseClasses = 'fixed z-20 transition-all duration-300';
+    const baseClasses = 'absolute z-20 transition-all duration-300';
     
     if (drawingState.tutorAtBottom) {
       // Toolbar on right side
@@ -111,21 +159,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   const getToggleButtonPosition = () => {
-    const baseClasses = 'fixed z-30 transition-all duration-300';
+    const baseClasses = 'absolute z-30 transition-all duration-300';
     
     if (drawingState.tutorAtBottom) {
       // Arrow on left edge of toolbar (pointing toward center when collapsed)
       if (isCollapsed) {
         return `${baseClasses} right-0 top-1/2 -translate-y-1/2 -translate-x-1/2`;
       } else {
-        return `${baseClasses} right-[120px] top-1/2 -translate-y-1/2`; // 120px = toolbar width + gap
+        return `${baseClasses} right-[120px] top-1/2 -translate-y-1/2`;
       }
     } else {
       // Arrow on right edge of toolbar (pointing toward center when collapsed, rotated)
       if (isCollapsed) {
         return `${baseClasses} left-0 top-1/2 -translate-y-1/2 translate-x-1/2`;
       } else {
-        return `${baseClasses} left-[120px] top-1/2 -translate-y-1/2`; // 120px = toolbar width + gap
+        return `${baseClasses} left-[120px] top-1/2 -translate-y-1/2`;
       }
     }
   };
@@ -144,6 +192,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   const ArrowIcon = getArrowIcon();
 
+  // Calculate scaled dimensions
+  const getScaledSize = (baseSize: number) => Math.round(baseSize * scaleFactor);
+  const getScaledPadding = (basePadding: number) => Math.round(basePadding * scaleFactor);
+  const getScaledGap = (baseGap: number) => Math.round(baseGap * scaleFactor);
   return (
     <>
       {/* Toggle Button */}
@@ -157,41 +209,57 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Toolbar */}
       <div className={getToolbarPosition()}>
-        <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg p-4">
-          <div className="flex flex-col items-center gap-3 w-20">
+        <div 
+          ref={toolbarRef}
+          className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg origin-center transition-transform duration-300"
+          style={{ 
+            transform: `scale(${scaleFactor})`,
+            padding: `${getScaledPadding(16)}px`
+          }}
+        >
+          <div className="flex flex-col items-center w-20" style={{ gap: `${getScaledGap(12)}px` }}>
             {/* Tools - arranged in 2 columns */}
-            <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="grid grid-cols-2 gap-1 w-full">
+            <div className="flex flex-col items-center border-b border-gray-200" style={{ gap: `${getScaledGap(8)}px`, paddingBottom: `${getScaledGap(12)}px` }}>
+              <div className="grid grid-cols-2 w-full" style={{ gap: `${getScaledGap(4)}px` }}>
                 {tools.map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
                     onClick={() => onToolChange(id as DrawingState['currentTool'])}
-                    className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
+                    className={`rounded-lg transition-colors flex items-center justify-center ${
                       drawingState.currentTool === id
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
+                    style={{ 
+                      width: `${getScaledSize(36)}px`, 
+                      height: `${getScaledSize(36)}px`,
+                      padding: `${getScaledPadding(8)}px`
+                    }}
                     title={label}
                   >
-                    <Icon size={16} />
+                    <Icon size={getScaledSize(16)} />
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Colors - 2x4 grid */}
-            <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="grid grid-cols-2 gap-1 w-full relative">
+            <div className="flex flex-col items-center border-b border-gray-200" style={{ gap: `${getScaledGap(8)}px`, paddingBottom: `${getScaledGap(12)}px` }}>
+              <div className="grid grid-cols-2 w-full relative" style={{ gap: `${getScaledGap(4)}px` }}>
                 {colors.map((color) => (
                   <button
                     key={color}
                     onClick={() => onColorChange(color)}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    className={`rounded-full border-2 transition-all ${
                       drawingState.currentColor === color
                         ? 'border-gray-800 scale-110'
                         : 'border-gray-300 hover:border-gray-500'
                     }`}
-                    style={{ backgroundColor: color }}
+                    style={{ 
+                      backgroundColor: color,
+                      width: `${getScaledSize(28)}px`,
+                      height: `${getScaledSize(28)}px`
+                    }}
                     title={`Color: ${color}`}
                   />
                 ))}
@@ -201,13 +269,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                   <button
                     ref={colorButtonRef}
                     onClick={() => setShowColorPicker(!showColorPicker)}
-                    className={`w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center ${
+                    className={`rounded-full border-2 transition-all flex items-center justify-center ${
                       showColorPicker
                         ? 'border-gray-800 scale-110'
                         : 'border-gray-300 hover:border-gray-500'
                     }`}
                     style={{ 
                       background: `conic-gradient(red, yellow, lime, aqua, blue, magenta, red)`,
+                      width: `${getScaledSize(28)}px`,
+                      height: `${getScaledSize(28)}px`
                     }}
                     title="Custom Color Picker"
                   />
@@ -216,9 +286,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </div>
 
             {/* Width - Slider */}
-            <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="w-full px-1">
-                <div className="text-xs text-gray-500 text-center mb-1">
+            <div className="flex flex-col items-center border-b border-gray-200" style={{ gap: `${getScaledGap(8)}px`, paddingBottom: `${getScaledGap(12)}px` }}>
+              <div className="w-full" style={{ padding: `0 ${getScaledPadding(4)}px` }}>
+                <div className="text-gray-500 text-center" style={{ fontSize: `${getScaledSize(12)}px`, marginBottom: `${getScaledGap(4)}px` }}>
                   {drawingState.currentWidth}px
                 </div>
                 <input
@@ -227,14 +297,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                   max="50"
                   value={drawingState.currentWidth}
                   onChange={(e) => onWidthChange(parseInt(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  className="w-full bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  style={{ height: `${getScaledSize(8)}px` }}
                   title={`Width: ${drawingState.currentWidth}px`}
                 />
                 <style jsx>{`
                   .slider::-webkit-slider-thumb {
                     appearance: none;
-                    height: 16px;
-                    width: 16px;
+                    height: ${getScaledSize(16)}px;
+                    width: ${getScaledSize(16)}px;
                     border-radius: 50%;
                     background: #3b82f6;
                     cursor: pointer;
@@ -242,8 +313,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                   }
                   .slider::-moz-range-thumb {
-                    height: 16px;
-                    width: 16px;
+                    height: ${getScaledSize(16)}px;
+                    width: ${getScaledSize(16)}px;
                     border-radius: 50%;
                     background: #3b82f6;
                     cursor: pointer;
@@ -255,62 +326,87 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </div>
 
             {/* Actions - 2 columns for most, single column for some */}
-            <div className="flex flex-col items-center gap-2 border-b border-gray-200 pb-3">
-              <div className="grid grid-cols-2 gap-1 w-full">
+            <div className="flex flex-col items-center border-b border-gray-200" style={{ gap: `${getScaledGap(8)}px`, paddingBottom: `${getScaledGap(12)}px` }}>
+              <div className="grid grid-cols-2 w-full" style={{ gap: `${getScaledGap(4)}px` }}>
                 <button
                   onClick={onToggleFullscreen}
-                  className="p-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors w-9 h-9 flex items-center justify-center"
+                  className="rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors flex items-center justify-center"
+                  style={{ 
+                    width: `${getScaledSize(36)}px`, 
+                    height: `${getScaledSize(36)}px`,
+                    padding: `${getScaledPadding(8)}px`
+                  }}
                   title={drawingState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
-                  {drawingState.isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+                  {drawingState.isFullscreen ? <Minimize size={getScaledSize(16)} /> : <Maximize size={getScaledSize(16)} />}
                 </button>
 
                 <button
                   onClick={onExport}
-                  className="p-2 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors w-9 h-9 flex items-center justify-center"
+                  className="rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors flex items-center justify-center"
+                  style={{ 
+                    width: `${getScaledSize(36)}px`, 
+                    height: `${getScaledSize(36)}px`,
+                    padding: `${getScaledPadding(8)}px`
+                  }}
                   title="Export Canvas"
                 >
-                  <Download size={16} />
+                  <Download size={getScaledSize(16)} />
                 </button>
               </div>
             </div>
 
             {/* Undo/Redo/Clear Section */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="grid grid-cols-2 gap-1 w-full">
+            <div className="flex flex-col items-center" style={{ gap: `${getScaledGap(8)}px` }}>
+              <div className="grid grid-cols-2 w-full" style={{ gap: `${getScaledGap(4)}px` }}>
                 <button
                   onClick={onUndo}
                   disabled={drawingState.undoStack.length === 0}
-                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
+                  className={`rounded-lg transition-colors flex items-center justify-center ${
                     drawingState.undoStack.length === 0
                       ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
+                  style={{ 
+                    width: `${getScaledSize(36)}px`, 
+                    height: `${getScaledSize(36)}px`,
+                    padding: `${getScaledPadding(8)}px`
+                  }}
                   title="Undo"
                 >
-                  <Undo size={16} />
+                  <Undo size={getScaledSize(16)} />
                 </button>
 
                 <button
                   onClick={onRedo}
                   disabled={drawingState.redoStack.length === 0}
-                  className={`p-2 rounded-lg transition-colors w-9 h-9 flex items-center justify-center ${
+                  className={`rounded-lg transition-colors flex items-center justify-center ${
                     drawingState.redoStack.length === 0
                       ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
+                  style={{ 
+                    width: `${getScaledSize(36)}px`, 
+                    height: `${getScaledSize(36)}px`,
+                    padding: `${getScaledPadding(8)}px`
+                  }}
                   title="Redo"
                 >
-                  <Redo size={16} />
+                  <Redo size={getScaledSize(16)} />
                 </button>
               </div>
 
               <button
                 onClick={onClear}
-                className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors w-9 h-9 flex items-center justify-center"
+                className="rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors flex items-center justify-center"
+                style={{ 
+                  width: `${getScaledSize(36)}px`, 
+                  height: `${getScaledSize(36)}px`,
+                  padding: `${getScaledPadding(8)}px`
+                }}
                 title="Clear Canvas"
               >
-                <Trash2 size={16} />
+                <Trash2 size={getScaledSize(16)} />
               </button>
             </div>
           </div>

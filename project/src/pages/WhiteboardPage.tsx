@@ -77,7 +77,7 @@ export const WhiteboardPage: React.FC = () => {
       )}
 
       {/* Main Canvas Area - Takes remaining space */}
-      <div className="flex flex-col" style={{ height: availableHeight }}>
+      <div className="flex flex-col relative" style={{ height: availableHeight }}>
         {/* Student Canvas (Top half) */}
         <div className="relative border-b border-gray-300" style={{ height: canvasHeight }}>
           <Canvas
@@ -96,23 +96,6 @@ export const WhiteboardPage: React.FC = () => {
             role={drawingState.tutorAtBottom ? 'viewer' : 'editor'}
             tutorAtBottom={drawingState.tutorAtBottom}
           />
-          
-          {!drawingState.tutorAtBottom && (
-            <Toolbar
-              drawingState={drawingState}
-              isCollapsed={isToolbarCollapsed}
-              onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
-              onToolChange={setTool}
-              onColorChange={setColor}
-              onWidthChange={setWidth}
-              onUndo={undo}
-              onRedo={redo}
-              onClear={clearCanvas}
-              onExport={handleExport}
-              onToggleFullscreen={toggleFullscreen}
-              isRotated={true}
-            />
-          )}
         </div>
 
         {/* Tutor Canvas (Bottom half) */}
@@ -133,28 +116,46 @@ export const WhiteboardPage: React.FC = () => {
             role={drawingState.tutorAtBottom ? 'editor' : 'viewer'}
             tutorAtBottom={drawingState.tutorAtBottom}
           />
-          
-          {drawingState.tutorAtBottom && (
-            <Toolbar
-              drawingState={drawingState}
-              isCollapsed={isToolbarCollapsed}
-              onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
-              onToolChange={setTool}
-              onColorChange={setColor}
-              onWidthChange={setWidth}
-              onUndo={undo}
-              onRedo={redo}
-              onClear={clearCanvas}
-              onExport={handleExport}
-              onToggleFullscreen={toggleFullscreen}
-              isRotated={false}
-            />
-          )}
         </div>
-      </div>
 
-      {/* Centered Flip Button */}
-      <FlipButton onFlipRoles={flipRoles} />
+        {/* Centered Flip Button */}
+        <FlipButton onFlipRoles={flipRoles} />
+
+        {/* Toolbar - positioned based on current editor */}
+        {!drawingState.tutorAtBottom && (
+          <Toolbar
+            drawingState={drawingState}
+            isCollapsed={isToolbarCollapsed}
+            onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
+            onToolChange={setTool}
+            onColorChange={setColor}
+            onWidthChange={setWidth}
+            onUndo={undo}
+            onRedo={redo}
+            onClear={clearCanvas}
+            onExport={handleExport}
+            onToggleFullscreen={toggleFullscreen}
+            isRotated={true}
+          />
+        )}
+        
+        {drawingState.tutorAtBottom && (
+          <Toolbar
+            drawingState={drawingState}
+            isCollapsed={isToolbarCollapsed}
+            onToggleCollapse={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
+            onToolChange={setTool}
+            onColorChange={setColor}
+            onWidthChange={setWidth}
+            onUndo={undo}
+            onRedo={redo}
+            onClear={clearCanvas}
+            onExport={handleExport}
+            onToggleFullscreen={toggleFullscreen}
+            isRotated={false}
+          />
+        )}
+      </div>
 
       {/* Footer - Hidden in fullscreen */}
       {!drawingState.isFullscreen && (

@@ -26,12 +26,10 @@ export const FlipButton: React.FC<FlipButtonProps> = ({ onFlipRoles }) => {
     <button
       onClick={handleClick}
       className={`
-        fixed left-1/2 -translate-x-1/2 z-30 w-10 h-10 rounded-full text-white transition-all duration-200 ease-out flex items-center justify-center overflow-hidden
+        absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full text-white transition-all duration-200 ease-out flex items-center justify-center overflow-hidden
         transition-transform duration-600 ease-out
       `}
       style={{
-        top: '50vh', // Always at 50% of viewport height
-        transform: 'translateX(-50%) translateY(-50%)', // Center horizontally and vertically on the divider line
         transform: `translateX(-50%) translateY(-50%) rotate(${rotation}deg)`, // Include rotation in transform
         background: 'linear-gradient(135deg, #10b981 50%, #3b82f6 50%)', // Green top-left diagonal, blue bottom-right diagonal
       }}
